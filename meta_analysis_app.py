@@ -657,48 +657,100 @@ def begg_test(yi, vi):
 def trim_and_fill(yi, vi, estimator="L0", maxiter=100):
     """
     Duval & Tweedie (2000) trim-and-fill correction.
-    estimator: 'L0' or 'R0'
-    Returns dict: k0 (studies imputed), filled_yi, filled_vi,
-                  mu_adj, ci_lo, ci_hi on logit scale; p_adj, p_lo, p_hi on proportion scale.
+    estimator: 'L0' (recommended default) or 'R0'.
+    Formulas verified against the reference implementation in the R
+    'metafor' package (Viechtbauer) — signed-rank sum for L0, and the
+    top run-length of positive signed ranks for R0 — rather than the
+    ad hoc formulas used previously, which could runaway and trim
+    nearly the whole dataset even when there was no real asymmetry.
+
+    Side (left/right) is auto-detected via an Egger-style regression of
+    yi on sqrt(vi), matching the direction convention metafor uses,
+    instead of always assuming the excess lies on the largest-yi side.
+
+    R0 is known in the literature to be numerically volatile (a single
+    extreme study can dominate it). If it fails to converge, or trims an
+    implausibly large share of the studies (a symptom of that
+    instability rather than a real finding), no correction is applied
+    and `converged=False` is returned so the caller can warn the user
+    and suggest L0 instead.
+
+    Returns dict: k0 (studies imputed), side, converged, filled_yi,
+                  filled_vi, mu_adj, ci_lo, ci_hi on logit scale;
+                  p_adj, p_lo, p_hi on proportion scale.
     """
+    yi = np.asarray(yi, dtype=float)
+    vi = np.asarray(vi, dtype=float)
     k = len(yi)
+
     def _re_pool(y, v):
-        tau2 = max(0.0, dl_heterogeneity(y, v)[0])
+        tau2 = max(0.0, dl_heterogeneity(y, v)[0]) if len(y) > 1 else 0.0
         w = 1.0 / (v + tau2)
         mu = np.dot(w, y) / w.sum()
         return mu, tau2
-    mu, _ = _re_pool(yi, vi)
-    k0_prev, k0 = -1, 0
-    for _ in range(maxiter):
-        yi_c = yi - mu
-        ranks = stats.rankdata(np.abs(yi_c))
+
+    # ── Step 1: which side has the excess / missing studies? ──────────────
+    # Egger-style weighted regression of yi on sqrt(vi); a negative slope
+    # indicates asymmetry with excess on the right (small negative-effect
+    # studies missing on the left), matching metafor's convention.
+    try:
+        sqvi = np.sqrt(vi); w_eg = 1.0 / vi
+        X = np.column_stack([np.ones(k), sqvi])
+        XtWX = X.T @ (w_eg[:, None] * X)
+        beta_reg = np.linalg.solve(XtWX, X.T @ (w_eg * yi))
+        side = "right" if beta_reg[1] < 0 else "left"
+    except np.linalg.LinAlgError:
+        side = "right"
+
+    flip = -1.0 if side == "right" else 1.0
+    yw = flip * yi
+    order = np.argsort(yw)               # ascending
+    yw_s, vi_s = yw[order], vi[order]
+
+    # ── Step 2: iteratively estimate k0 ────────────────────────────────────
+    k0, seen, converged = 0, set(), True
+    mu = _re_pool(yw_s, vi_s)[0]
+    for _ in range(1, maxiter + 1):
+        keep_n = max(1, k - k0)
+        mu, _ = _re_pool(yw_s[:keep_n], vi_s[:keep_n])
+        yc = yw_s - mu
+        ranks = stats.rankdata(np.abs(yc), method="ordinal")
+        sr = np.sign(yc) * ranks
         if estimator == "R0":
-            T_n = float(np.sum(ranks[yi_c > 0]))
-            k0 = max(0, int(np.round((4 * T_n) / (k + 1) - 0.5)))
+            neg = sr[sr < 0]
+            k0_raw = 0 if len(neg) == 0 else (k - (-neg.max())) - 1
         else:  # L0
-            n_pos = int(np.sum(yi_c > 0))
-            T_n = float(np.sum(ranks[yi_c > 0])) - n_pos * (n_pos + 1) / 2.0
-            denom = k - T_n / max(k, 1)
-            k0 = max(0, int(np.round(T_n / denom))) if denom > 0 else 0
-        k0 = min(k0, k - 2)          # keep at least 2 studies
-        if k0 == k0_prev:
+            Sr = float(sr[sr > 0].sum())
+            k0_raw = (4 * Sr - k * (k + 1)) / (2 * k - 1)
+        k0_new = max(0, min(int(np.round(k0_raw)), k - 2))
+        if k0_new == k0:
             break
-        k0_prev = k0
-        # Trim k0 most extreme studies on the positive (right) side
-        order = np.argsort(yi)[::-1]  # largest first
-        keep = np.sort(order[k0:])
-        if len(keep) < 2:
-            k0 = 0; break
-        mu, _ = _re_pool(yi[keep], vi[keep])
-    # Fill: add mirror images of the trimmed studies
+        if k0_new in seen:               # oscillating — won't converge
+            converged = False
+            break
+        seen.add(k0_new)
+        k0 = k0_new
+    else:
+        converged = False
+
+    # R0 trimming an implausibly large share of the studies is a symptom
+    # of its known instability, not a credible finding — don't report it.
+    if estimator == "R0" and k0 > 0.6 * k:
+        converged = False
+    if not converged:
+        k0 = 0
+
+    # ── Step 3: fill — mirror the k0 most extreme trimmed studies ─────────
     if k0 > 0:
-        order = np.argsort(yi)[::-1]
-        trimmed_idx = order[:k0]
-        filled_yi = np.concatenate([yi, 2 * mu - yi[trimmed_idx]])
-        filled_vi = np.concatenate([vi, vi[trimmed_idx]])
+        trimmed_yw = yw_s[k - k0:]
+        trimmed_vi = vi_s[k - k0:]
+        imputed_yi = flip * (2 * mu - trimmed_yw)   # back to original orientation
+        filled_yi = np.concatenate([yi, imputed_yi])
+        filled_vi = np.concatenate([vi, trimmed_vi])
     else:
         filled_yi = yi.copy()
         filled_vi = vi.copy()
+
     # Final pooled estimate using all (observed + filled) studies
     mu_adj, tau2_adj = _re_pool(filled_yi, filled_vi)
     w_adj = 1.0 / (filled_vi + tau2_adj)
@@ -709,6 +761,8 @@ def trim_and_fill(yi, vi, estimator="L0", maxiter=100):
     ci_hi = mu_adj + t_crit * se_adj
     return dict(
         k0=k0,
+        side=side,
+        converged=converged,
         filled_yi=filled_yi,
         filled_vi=filled_vi,
         mu_adj=mu_adj,
@@ -1473,10 +1527,20 @@ with tabs[6]:
     tf = st.session_state.get("tf_result")
     if tf is not None:
         k0 = tf["k0"]
-        if k0 == 0:
+        if not tf.get("converged", True):
+            st.warning(
+                "The R0 estimator did not converge to a stable result for this data "
+                "(a known instability of R0 — it can be thrown off by a single extreme "
+                "study). No correction was applied. Try the **L0** estimator instead, "
+                "which is the recommended default and more numerically stable."
+            )
+        elif k0 == 0:
             st.info("Trim-and-fill found no asymmetry to correct (k0 = 0). Estimates unchanged.")
         else:
-            st.markdown(f"**Studies imputed (k0):** {k0}")
+            st.markdown(
+                f"**Studies imputed (k0):** {k0}  ·  "
+                f"detected excess on the **{tf.get('side','right')}** side of the funnel"
+            )
         c1, c2, c3 = st.columns(3)
         c1.metric("Adjusted proportion",
                   f"{tf['p_adj']:.{_p6}f}",
