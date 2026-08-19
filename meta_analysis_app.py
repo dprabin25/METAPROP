@@ -56,13 +56,85 @@ html, body, [class*="css"]  { font-family: 'Inter', sans-serif; }
 [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
     color:#FFFFFF !important; letter-spacing:.02em;
 }
-[data-testid="stSidebar"] hr { border-color:#28345A; }
-[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"] > div,
-[data-testid="stSidebar"] .stMultiSelect div[data-baseweb="select"] > div {
-    background:#1B2747; border-radius:10px; border:1px solid #2C3A63;
+[data-testid="stSidebar"] hr { border-color:#28345A; margin: 14px 0; }
+
+/* ---- Sidebar brand block ---- */
+.sidebar-brand {
+    display:flex; align-items:center; gap:10px;
+    padding: 2px 0 16px 0; margin-bottom: 8px;
+    border-bottom: 1px solid #28345A;
 }
+.sidebar-brand .logo {
+    width:38px; height:38px; border-radius:11px; flex-shrink:0;
+    background: linear-gradient(135deg, #0072B2, #56B4E9);
+    display:flex; align-items:center; justify-content:center;
+    font-size:19px; box-shadow: 0 2px 10px rgba(0,114,178,0.45);
+}
+.sidebar-brand .name { font-size:19px; font-weight:800; color:#FFFFFF !important; letter-spacing:-0.01em; line-height:1.15; }
+.sidebar-brand .tag  { font-size:10.5px; font-weight:600; color:#7C90C2 !important; letter-spacing:.06em; text-transform:uppercase; }
+
+/* ---- Sidebar section labels ---- */
+[data-testid="stSidebar"] h3 {
+    font-size:12px !important; text-transform:uppercase; letter-spacing:.08em;
+    color:#6C86C4 !important; font-weight:800 !important; margin-top:6px;
+}
+
+/* ---- Sidebar selects / multiselects: WHITE box, DARK NAVY text ---- */
+[data-testid="stSidebar"] div[data-baseweb="select"] > div {
+    background:#FFFFFF !important;
+    border-radius:10px !important;
+    border:1.5px solid #3A4C80 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+[data-testid="stSidebar"] div[data-baseweb="select"]:hover > div {
+    border-color:#56B4E9 !important;
+}
+[data-testid="stSidebar"] div[data-baseweb="select"] > div *,
+[data-testid="stSidebar"] div[data-baseweb="select"] span,
+[data-testid="stSidebar"] div[data-baseweb="select"] div {
+    color:#0A2A57 !important;
+    font-weight:600 !important;
+    -webkit-text-fill-color:#0A2A57 !important;
+}
+[data-testid="stSidebar"] div[data-baseweb="select"] svg { fill:#0A2A57 !important; }
+/* Multiselect selected-value chips (dark navy pill, white text) inside sidebar */
+[data-testid="stSidebar"] span[data-baseweb="tag"] {
+    background:#0B2D6B !important; border-radius:6px !important;
+}
+[data-testid="stSidebar"] span[data-baseweb="tag"] * {
+    color:#FFFFFF !important; -webkit-text-fill-color:#FFFFFF !important;
+}
+
 [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
     background:#1B2747; border:1.5px dashed #3A4C80; border-radius:12px;
+    transition: border-color .15s ease, background .15s ease;
+}
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]:hover {
+    border-color:#56B4E9; background:#20305A;
+}
+
+/* ---- Sidebar sliders: brand-blue accent ---- */
+[data-testid="stSidebar"] [data-testid="stSlider"] div[role="slider"] {
+    background-color:#56B4E9 !important; border-color:#56B4E9 !important;
+    box-shadow: 0 0 0 4px rgba(86,180,233,0.25) !important;
+}
+[data-testid="stSidebar"] [data-testid="stSlider"] > div > div > div > div {
+    background: linear-gradient(90deg, #0072B2, #56B4E9) !important;
+}
+
+/* ---- Sidebar primary button (Generate ZIP) ---- */
+[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+    background: linear-gradient(90deg, #0072B2, #56B4E9) !important;
+    border:none !important; color:#FFFFFF !important; font-weight:700 !important;
+    box-shadow: 0 3px 12px rgba(0,114,178,0.4);
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
+    transform: translateY(-1px); box-shadow: 0 5px 16px rgba(0,114,178,0.55);
+}
+[data-testid="stSidebar"] .stDownloadButton > button {
+    background:#1B2747 !important; color:#E7ECF7 !important; border:1px solid #3A4C80 !important;
 }
 
 /* ---- Headings ---- */
@@ -180,6 +252,69 @@ ul[role="listbox"] li:hover, ul[role="listbox"] li[aria-selected="true"] {
 [data-testid="stAppViewContainer"] .main [data-testid="stFileUploaderDropzone"] * {
     color:#0A2A57 !important;
 }
+
+/* ---- Hero title block ---- */
+.hero-wrap { margin-bottom: 6px; }
+.hero-underline {
+    height:4px; width:96px; border-radius:4px; margin: 4px 0 18px 0;
+    background: linear-gradient(90deg, #0072B2, #56B4E9, #009E73);
+}
+[data-testid="stAppViewContainer"] .main [data-testid="stCaptionContainer"] p {
+    color:#5B6B93 !important; font-weight:600 !important; font-size:14.5px !important;
+    letter-spacing:.01em;
+}
+
+/* ---- Section dividers in main body ---- */
+[data-testid="stAppViewContainer"] .main hr {
+    border-color:#DCE3F4; margin: 1.6rem 0;
+}
+
+/* ---- Hover-lift on cards ---- */
+[data-testid="stMetric"], [data-testid="stDataFrame"], .streamlit-expanderHeader {
+    transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease;
+}
+[data-testid="stMetric"]:hover {
+    box-shadow: 0 6px 18px rgba(0,114,178,0.14); transform: translateY(-2px);
+    border-color:#BFD8F5;
+}
+[data-testid="stDataFrame"]:hover { box-shadow: 0 6px 18px rgba(20,30,60,0.12); }
+.streamlit-expanderHeader:hover { box-shadow: 0 2px 8px rgba(20,30,60,0.10); }
+
+/* ---- Buttons: lift + smoother transitions everywhere ---- */
+.stButton > button, .stDownloadButton > button {
+    transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+.stButton > button:hover, .stDownloadButton > button:hover {
+    transform: translateY(-1px);
+}
+
+/* ---- Alerts: colored left accent bar per type ---- */
+div[data-testid="stAlert"] { border-left: 5px solid #56B4E9; }
+div[data-testid="stAlert"][data-baseweb="notification"] { }
+div[data-testid="stAlertContentInfo"] { }
+div[data-testid="stAlert"]:has(svg[data-testid="stIconMaterialCheckCircle"]) { border-left-color:#009E73; }
+div[data-testid="stAlert"]:has(svg[data-testid="stIconMaterialError"]) { border-left-color:#D55E00; }
+div[data-testid="stAlert"]:has(svg[data-testid="stIconMaterialWarning"]) { border-left-color:#E69F00; }
+
+/* ---- Inputs: focus ring in brand blue ---- */
+[data-testid="stAppViewContainer"] .main div[data-baseweb="select"]:focus-within > div,
+[data-testid="stAppViewContainer"] .main div[data-baseweb="base-input"]:focus-within {
+    box-shadow: 0 0 0 3px rgba(0,114,178,0.18) !important;
+    border-color:#0072B2 !important;
+}
+
+/* ---- Tabs: subtle lift on hover ---- */
+.stTabs [data-baseweb="tab"]:hover { background:#EEF3FC; }
+.stTabs [aria-selected="true"]:hover { background: linear-gradient(90deg, #0072B2, #56B4E9) !important; }
+
+/* ---- Custom scrollbar ---- */
+::-webkit-scrollbar { width:10px; height:10px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb {
+    background:#B9C7E6; border-radius:8px; border:2px solid transparent; background-clip:content-box;
+}
+::-webkit-scrollbar-thumb:hover { background:#8FA6D6; background-clip:content-box; }
+[data-testid="stSidebar"] ::-webkit-scrollbar-thumb { background:#2C3A63; background-clip:content-box; }
 
 /* ---- Footer / copyright ---- */
 .app-footer {
