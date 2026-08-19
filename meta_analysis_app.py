@@ -1508,10 +1508,19 @@ with tabs[6]:
     if not has_min_studies:
         st.info("**Publication bias: Inconclusive** — Egger's and Begg's tests need ≥ 3 studies.")
     elif bias_confirmed:
-        which_hdr = []
-        if egger_sig: which_hdr.append("Egger's")
-        if begg_sig:  which_hdr.append("Begg's")
-        st.error(f"**Publication bias: Yes** — detected by {' and '.join(which_hdr)} (p < 0.10).")
+        if egger_sig and begg_sig:
+            detail = "detected by **both** Egger's and Begg's tests (p < 0.10)."
+        elif egger_sig:
+            detail = ("detected by **Egger's** test (p < 0.10); **Begg's** test found no "
+                       "significant asymmetry (p ≥ 0.10). The two tests disagreeing is common "
+                       "with a moderate number of studies — treat this as a signal to inspect "
+                       "the funnel plot yourself rather than a definitive verdict.")
+        else:
+            detail = ("detected by **Begg's** test (p < 0.10); **Egger's** test found no "
+                       "significant asymmetry (p ≥ 0.10). The two tests disagreeing is common "
+                       "with a moderate number of studies — treat this as a signal to inspect "
+                       "the funnel plot yourself rather than a definitive verdict.")
+        st.error(f"**Publication bias: Yes** — {detail}")
     else:
         st.success("**Publication bias: No** — neither Egger's nor Begg's test found significant asymmetry (p ≥ 0.10).")
 
