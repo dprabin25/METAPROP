@@ -1099,10 +1099,20 @@ with tabs[2]:
 # ── 3 Forest (Overall) ──────────────────────────────────────────────────────────
 with tabs[3]:
     st.subheader("Forest Plot — Overall")
-    fig = forest_overall(analysis_df, res)
-    st.pyplot(fig, use_container_width=False)
-    st.download_button("Download forest (overall)", fig_png(fig), "forest_overall.png", "image/png")
-    plt.close(fig)
+    try:
+        fig = forest_overall(analysis_df.reset_index(drop=True), res)
+        st.pyplot(fig, width="stretch")
+        st.download_button(
+            "Download forest (overall)",
+            fig_png(fig),
+            "forest_overall.png",
+            "image/png",
+        )
+    except Exception as e:
+        st.error(f"Could not render the overall forest plot: {e}")
+    finally:
+        if "fig" in locals() and fig is not None:
+            plt.close(fig)
 
 # ── 4 Forest (Subgroup) ─────────────────────────────────────────────────────────
 with tabs[4]:
@@ -1116,16 +1126,25 @@ with tabs[4]:
                 if n_groups_sg < 2:
                     st.info(f"'{gc}' has only {n_groups_sg} unique value — choose a column with 2+ groups.")
                 else:
-                    fig_sg = forest_subgroup(analysis_df, res, gc)
-                    st.pyplot(fig_sg, use_container_width=False)
-                    st.download_button(
-                        f"Download forest ({gc})",
-                        fig_png(fig_sg),
-                        f"forest_subgroup_{sanitize(gc)}.png",
-                        "image/png",
-                        key=f"dl_forest_{gc}",
-                    )
-                    plt.close(fig_sg)
+                    try:
+                        fig_sg = forest_subgroup(
+                            analysis_df.reset_index(drop=True), res, gc
+                        )
+                        st.pyplot(fig_sg, width="stretch")
+                        st.download_button(
+                            f"Download forest ({gc})",
+                            fig_png(fig_sg),
+                            f"forest_subgroup_{sanitize(gc)}.png",
+                            "image/png",
+                            key=f"dl_forest_{sanitize(gc)}",
+                        )
+                    except Exception as e:
+                        st.error(
+                            f"Could not render the forest plot for '{gc}': {e}"
+                        )
+                    finally:
+                        if "fig_sg" in locals() and fig_sg is not None:
+                            plt.close(fig_sg)
 
 # ── 5 Funnel Plot ───────────────────────────────────────────────────────────────
 with tabs[5]:
@@ -1134,7 +1153,7 @@ with tabs[5]:
     col_opt = st.radio("Color points by", color_options, horizontal=True, key="funnel_color")
     gc_funnel = col_opt if col_opt != "None (plain)" else None
     fig = funnel_plot(res, analysis_df, group_col=gc_funnel)
-    st.pyplot(fig, use_container_width=False)
+    st.pyplot(fig, width="stretch")
     st.download_button("Download funnel plot", fig_png(fig), "funnel.png", "image/png")
     plt.close(fig)
 
@@ -1235,7 +1254,7 @@ with tabs[6]:
         }), use_container_width=True, hide_index=True)
 
         fig_tf = funnel_plot_trimfill(res, tf, title="Funnel Plot — Trim-and-Fill Adjusted")
-        st.pyplot(fig_tf, use_container_width=False)
+        st.pyplot(fig_tf, width="stretch")
         st.download_button("Download adjusted funnel plot", fig_png(fig_tf),
                            "funnel_trimfill.png", "image/png", key="dl_tf_funnel")
         plt.close(fig_tf)
@@ -1245,7 +1264,7 @@ with tabs[6]:
     fig = funnel_plot(res, analysis_df,
                       group_col=group_col if group_col else None,
                       title="Funnel Plot (Overall)")
-    st.pyplot(fig, use_container_width=False)
+    st.pyplot(fig, width="stretch")
     plt.close(fig)
 
     if group_cols:
@@ -1255,7 +1274,7 @@ with tabs[6]:
             n_g = analysis_df[gc].astype(str).nunique()
             if n_g >= 2:
                 fig_sf = subgroup_funnel_grid(analysis_df, gc)
-                st.pyplot(fig_sf, use_container_width=False)
+                st.pyplot(fig_sf, width="stretch")
                 st.download_button(
                     f"Download subgroup funnels ({gc})",
                     fig_png(fig_sf),
@@ -1289,7 +1308,7 @@ with tabs[7]:
                 st.markdown("#### Coefficients (logit scale)")
                 st.dataframe(ct, use_container_width=True, hide_index=True)
                 st.caption("Estimates on logit scale. Positive = higher proportion.")
-                st.pyplot(fig_mr, use_container_width=False)
+                st.pyplot(fig_mr, width="stretch")
                 st.download_button("Download plot", fig_png(fig_mr),
                                    "meta_regression.png", "image/png")
                 plt.close(fig_mr)
@@ -1309,7 +1328,7 @@ with tabs[8]:
         if len(sel_cols) >= 2:
             fig_c = correlation_heatmap(analysis_df, sel_cols, method)
             if fig_c:
-                st.pyplot(fig_c, use_container_width=False)
+                st.pyplot(fig_c, width="stretch")
                 st.download_button("Download heatmap", fig_png(fig_c),
                                    "correlations.png", "image/png")
                 plt.close(fig_c)
@@ -1337,7 +1356,7 @@ with tabs[8]:
                 for idx in range(len(pairs), nr_s*nc_s):
                     axes_s[idx//nc_s][idx%nc_s].set_visible(False)
                 plt.tight_layout()
-                st.pyplot(fig_s, use_container_width=False)
+                st.pyplot(fig_s, width="stretch")
                 plt.close(fig_s)
         else:
             st.info("Select at least 2 columns.")
