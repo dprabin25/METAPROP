@@ -98,6 +98,24 @@ html, body, [class*="css"]  { font-family: 'Inter', sans-serif; }
     -webkit-text-fill-color:#0A2A57 !important;
 }
 [data-testid="stSidebar"] div[data-baseweb="select"] svg { fill:#0A2A57 !important; }
+/* The value/search text is often rendered in an <input> — cover it explicitly */
+[data-testid="stSidebar"] div[data-baseweb="select"] input {
+    color:#0A2A57 !important;
+    -webkit-text-fill-color:#0A2A57 !important;
+    font-weight:600 !important;
+    opacity: 1 !important;
+    caret-color:#0A2A57 !important;
+}
+/* Placeholder text ("Choose options" / unselected state) — dark navy, not gray */
+[data-testid="stSidebar"] div[data-baseweb="select"] input::placeholder {
+    color:#39527F !important;
+    -webkit-text-fill-color:#39527F !important;
+    opacity: 1 !important;
+    font-weight:600 !important;
+}
+[data-testid="stSidebar"] div[data-baseweb="select"] [class*="placeholder"] {
+    color:#39527F !important; -webkit-text-fill-color:#39527F !important; opacity:1 !important;
+}
 /* Multiselect selected-value chips (dark navy pill, white text) inside sidebar */
 [data-testid="stSidebar"] span[data-baseweb="tag"] {
     background:#0B2D6B !important; border-radius:6px !important;
@@ -166,6 +184,13 @@ h1 {
 }
 .stTabs [aria-selected="true"] p { color:#FFFFFF !important; }
 
+/* ---- Output-controls card (bordered container, top-right panel) ---- */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    background:#FFFFFF; border-radius:16px !important;
+    box-shadow: 0 2px 10px rgba(20,30,60,0.09); border:1px solid #E7ECF7 !important;
+}
+[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"] { gap:0.5rem; }
+
 /* ---- Cards: metrics, dataframes, expanders ---- */
 [data-testid="stMetric"] {
     background:#FFFFFF; border-radius:14px; padding:14px 16px;
@@ -221,6 +246,11 @@ div[data-testid="stAlert"] p { color:#0A2A57 !important; font-weight:600; }
     background:#FFFFFF !important;
     color:#0A2A57 !important;
     font-weight:600;
+}
+[data-testid="stAppViewContainer"] .main div[data-baseweb="select"] input::placeholder,
+[data-testid="stAppViewContainer"] .main div[data-baseweb="select"] [class*="placeholder"] {
+    color:#39527F !important; -webkit-text-fill-color:#39527F !important;
+    opacity:1 !important; font-weight:600 !important;
 }
 /* Dropdown option lists (rendered in a portal, still need dark text on white) */
 div[data-baseweb="popover"] li,
@@ -316,20 +346,21 @@ div[data-testid="stAlert"]:has(svg[data-testid="stIconMaterialWarning"]) { borde
 ::-webkit-scrollbar-thumb:hover { background:#8FA6D6; background-clip:content-box; }
 [data-testid="stSidebar"] ::-webkit-scrollbar-thumb { background:#2C3A63; background-clip:content-box; }
 
-/* ---- Footer / copyright ---- */
-.app-footer {
-    margin-top: 48px; padding-top: 18px; border-top: 1px solid #DCE3F4;
-    text-align:center; color:#0B2D6B; font-size:12.5px; letter-spacing:.02em;
+/* ---- Sidebar top credit line ---- */
+.sidebar-credit {
+    padding: 2px 0 14px 0; margin-bottom: 10px;
+    border-bottom: 1px solid #28345A;
+    text-align:left; font-size:11.5px; letter-spacing:.02em; color:#7C90C2 !important;
 }
-.app-footer strong { color:#0A2A57; }
+.sidebar-credit strong { color:#B9CBEF !important; }
 </style>
 """, unsafe_allow_html=True)
 
 
-def render_footer():
+def render_sidebar_credit():
     st.markdown(
         """
-        <div class="app-footer">
+        <div class="sidebar-credit">
             © 2025 <strong>Prabin Dawadi</strong>. All rights reserved.
         </div>
         """,
@@ -1110,6 +1141,7 @@ st.title("MetaPropA")
 st.caption("Random-effects (DerSimonian-Laird tau2)  |  HKSJ correction  |  Logit transformation  |  Okabe-Ito palette")
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
+    render_sidebar_credit()
     st.markdown("## Setup")
     uploaded = st.file_uploader("Upload CSV", type=["csv"])
     if not uploaded:
@@ -1139,11 +1171,9 @@ with st.sidebar:
         st.info(
             "Select a column for: **" + ", ".join(missing) + "** to continue."
         )
-        render_footer()
         st.stop()
     if len({study_col, sample_col, cases_col}) < 3:
         st.error("Study ID, Sample (n), and Cases / Events must each be a different column.")
-        render_footer()
         st.stop()
 
     cleaned_df, excluded_df = load_and_clean(raw_df, study_col, sample_col, cases_col)
@@ -1173,59 +1203,70 @@ with st.sidebar:
         analysis_df = analysis_df[~analysis_df["Study_ID"].isin(manual_excl)].reset_index(drop=True)
     if sg_focus != "All groups" and group_col:
         analysis_df = analysis_df[analysis_df[group_col].astype(str) == sg_focus].reset_index(drop=True)
-    # ── Display precision ──────────────────────────────────────────────────
-    st.markdown("---")
-    st.markdown("### Display precision")
-    PREC = st.slider(
-        "Decimal places",
-        min_value=1, max_value=6, value=4, step=1,
-        help="Controls how many decimal places appear in all numeric outputs (tables, metrics, forest plot labels).",
-        key="global_prec",
-    )
-    PCT_PREC = st.slider(
-        "Proportion display",
-        min_value=0, max_value=4, value=2, step=1,
-        help="Decimal places for back-transformed proportions shown as percentages (e.g. 2 → 63.47%).",
-        key="pct_prec",
-    )
-    st.markdown("---")
-    st.markdown(f"Studies in analysis: **{len(analysis_df)}**")
-    st.markdown(f"Excluded: **{len(excluded_df) + len(manual_excl)}**")
-    for gc in group_cols:
-        n_g = analysis_df[gc].astype(str).nunique()
-        st.markdown(f"Groups ({gc}): **{n_g}**")
-    # ── SAVE ───────────────────────────────────────────────────────────────
-    st.markdown("---")
-    st.markdown("### 💾 Save All Outputs")
-    st.caption(
-        "Generates a ZIP with structured folders:\n"
-        f"`{sanitize(sample_col)}__{sanitize(cases_col)}/`\n"
-        "  `data/`  `overall/`  `subgroups/{group}/{value}/`"
-    )
-    if st.button("Generate ZIP", type="primary", use_container_width=True):
-        if len(analysis_df) >= 2:
-            with st.spinner("Building outputs…"):
-                zip_bytes = generate_zip(
-                    analysis_df, excluded_df, res if "res" in dir() else run_meta(analysis_df),
-                    group_cols, sample_col, cases_col
-                )
-                st.session_state["zip_bytes"]    = zip_bytes
-                st.session_state["zip_filename"] = (
-                    f"{sanitize(sample_col)}__{sanitize(cases_col)}_meta_analysis.zip"
-                )
-        else:
-            st.error("Need ≥ 2 studies to generate outputs.")
-    if "zip_bytes" in st.session_state:
-        st.download_button(
-            "⬇️ Download ZIP  (Save As…)",
-            data=st.session_state["zip_bytes"],
-            file_name=st.session_state["zip_filename"],
-            mime="application/zip",
-            use_container_width=True,
-        )
-        st.caption("Your browser's Save As dialog will open.")
 
-    render_footer()
+# ── Output controls (right-hand panel, main content area) ───────────────────────
+top_left, top_right = st.columns([2.3, 1], gap="large")
+with top_left:
+    st.markdown("#### 📋 Dataset Overview")
+    ov1, ov2, ov3 = st.columns(3)
+    ov1.metric("Studies in analysis", len(analysis_df))
+    ov2.metric("Excluded", len(excluded_df) + len(manual_excl))
+    ov3.metric("Group columns", len(group_cols))
+    if group_cols:
+        group_bits = []
+        for gc in group_cols:
+            n_g = analysis_df[gc].astype(str).nunique()
+            group_bits.append(f"**{gc}** ({n_g} groups)")
+        st.caption("Grouped by: " + "  •  ".join(group_bits))
+with top_right:
+    with st.container(border=True):
+        st.markdown("#### ⚙️ Output Controls")
+        PREC = st.slider(
+            "Decimal places",
+            min_value=1, max_value=6, value=4, step=1,
+            help="Controls how many decimal places appear in all numeric outputs (tables, metrics, forest plot labels).",
+            key="global_prec",
+        )
+        PCT_PREC = st.slider(
+            "Proportion display",
+            min_value=0, max_value=4, value=2, step=1,
+            help="Decimal places for back-transformed proportions shown as percentages (e.g. 2 → 63.47%).",
+            key="pct_prec",
+        )
+        st.markdown("---")
+        st.markdown("**💾 Save All Outputs**")
+        st.caption(
+            "Generates a ZIP with structured folders:\n"
+            f"`{sanitize(sample_col)}__{sanitize(cases_col)}/`\n"
+            "  `data/`  `overall/`  `subgroups/{group}/{value}/`"
+        )
+        if st.button("Generate ZIP", type="primary", use_container_width=True):
+            if len(analysis_df) >= 2:
+                with st.spinner("Building outputs…"):
+                    zip_bytes = generate_zip(
+                        analysis_df, excluded_df, res if "res" in dir() else run_meta(analysis_df),
+                        group_cols, sample_col, cases_col
+                    )
+                    st.session_state["zip_bytes"]    = zip_bytes
+                    st.session_state["zip_filename"] = (
+                        f"{sanitize(sample_col)}__{sanitize(cases_col)}_meta_analysis.zip"
+                    )
+            else:
+                st.error("Need ≥ 2 studies to generate outputs.")
+        if "zip_bytes" in st.session_state:
+            st.download_button(
+                "⬇️ Download ZIP",
+                data=st.session_state["zip_bytes"],
+                file_name=st.session_state["zip_filename"],
+                mime="application/zip",
+                use_container_width=True,
+            )
+            st.caption(
+                "Saves straight to your browser's default Downloads folder. "
+                "To pick a location each time, turn on your browser's "
+                "\"Ask where to save each file\" setting."
+            )
+st.markdown("---")
 # ── Guard ──────────────────────────────────────────────────────────────────────
 if len(analysis_df) < 2:
     st.error("Need >= 2 valid studies. Check column mapping or filters.")
@@ -1558,5 +1599,3 @@ with tabs[8]:
                 plt.close(fig_s)
         else:
             st.info("Select at least 2 columns.")
-
-render_footer()
