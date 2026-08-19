@@ -140,8 +140,9 @@ def fmt_pct(v, prec=None):
 def _iq_box(ax, res):
     re_p = expit(res["mu"]);    re_lo = expit(res["ci_lo"]); re_hi = expit(res["ci_hi"])
     fe_p = expit(res["fe_mu"]); fe_lo = expit(res["fe_ci_lo"]); fe_hi = expit(res["fe_ci_hi"])
-    txt = (f"RE: {re_p:.3f} [{re_lo:.3f}, {re_hi:.3f}]     "
-           f"FE: {fe_p:.3f} [{fe_lo:.3f}, {fe_hi:.3f}]\n"
+    p = st.session_state.get("global_prec", 3)
+    txt = (f"RE: {re_p:.{p}f} [{re_lo:.{p}f}, {re_hi:.{p}f}]     "
+           f"FE: {fe_p:.{p}f} [{fe_lo:.{p}f}, {fe_hi:.{p}f}]\n"
            f"k = {res['k']}     I² = {res['I2']:.1f}%     τ² = {res['tau2']:.4f}     "
            f"Q = {res['Q']:.2f} (df={res['df_Q']})     p(het) = {res['pval_Q']:.4f}")
     ax.text(0.5, -0.07, txt,
@@ -191,7 +192,7 @@ def forest_overall(df, res):
     ax.plot([plo, phi_v], [0, 0], color=CB["vermil"], lw=1.6, ls="--", zorder=3, alpha=0.60)
     ax.axvline(m, color=CB["vermil"], lw=0.8, ls=":", alpha=0.28, zorder=1)
     ax.axhline(0.5, color="#DDDDDD", lw=0.8, zorder=0)
-    ax.text(1.03, 0, f"{m:.3f}  [{cl:.3f}, {ch:.3f}]",
+    ax.text(1.03, 0, f"{m:.{st.session_state.get('global_prec',3)}f}  [{cl:.{st.session_state.get('global_prec',3)}f}, {ch:.{st.session_state.get('global_prec',3)}f}]",
             transform=tr, fontsize=10, va="center", ha="left",
             fontweight="bold", color=CB["vermil"], clip_on=False)
     ax.text(1.38, 0, "100%", transform=tr, fontsize=10, va="center", ha="left",
@@ -199,7 +200,7 @@ def forest_overall(df, res):
     fe_m = expit(res["fe_mu"]); fe_cl = expit(res["fe_ci_lo"]); fe_ch = expit(res["fe_ci_hi"])
     ax.fill([fe_cl, fe_m, fe_ch, fe_m], [-1, -0.58, -1, -1.42], color=CB["blue"], zorder=4, alpha=0.80)
     ax.axhline(-0.5, color="#CCCCCC", lw=0.7, zorder=0, ls=":")
-    ax.text(1.03, -1, f"{fe_m:.3f}  [{fe_cl:.3f}, {fe_ch:.3f}]",
+    ax.text(1.03, -1, f"{fe_m:.{st.session_state.get('global_prec',3)}f}  [{fe_cl:.{st.session_state.get('global_prec',3)}f}, {fe_ch:.{st.session_state.get('global_prec',3)}f}]",
             transform=tr, fontsize=10, va="center", ha="left",
             fontweight="bold", color=CB["blue"], clip_on=False)
     ax.text(1.38, -1, "100%", transform=tr, fontsize=10, va="center", ha="left",
