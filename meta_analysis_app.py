@@ -318,13 +318,19 @@ ul[role="listbox"] li:hover, ul[role="listbox"] li[aria-selected="true"] {
     transform: translateY(-1px);
 }
 
-/* ---- Alerts: colored left accent bar per type ---- */
-div[data-testid="stAlert"] { border-left: 5px solid #56B4E9; }
-div[data-testid="stAlert"][data-baseweb="notification"] { }
-div[data-testid="stAlertContentInfo"] { }
+/* ---- Alerts: solid white box, colored left accent bar per type ---- */
+div[data-testid="stAlert"] {
+    background:#FFFFFF !important;
+    border-left: 5px solid #56B4E9;
+    box-shadow: 0 1px 4px rgba(20,30,60,0.08);
+}
+div[data-testid="stAlert"] * { background:transparent !important; }
 div[data-testid="stAlert"]:has(svg[data-testid="stIconMaterialCheckCircle"]) { border-left-color:#009E73; }
 div[data-testid="stAlert"]:has(svg[data-testid="stIconMaterialError"]) { border-left-color:#D55E00; }
 div[data-testid="stAlert"]:has(svg[data-testid="stIconMaterialWarning"]) { border-left-color:#E69F00; }
+/* Alerts inside the dark sidebar also get the white treatment */
+[data-testid="stSidebar"] div[data-testid="stAlert"] { background:#FFFFFF !important; }
+[data-testid="stSidebar"] div[data-testid="stAlert"] p { color:#0A2A57 !important; }
 
 /* ---- Inputs: focus ring in brand blue ---- */
 [data-testid="stAppViewContainer"] .main div[data-baseweb="select"]:focus-within > div,
