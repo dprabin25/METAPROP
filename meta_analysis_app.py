@@ -1568,13 +1568,22 @@ with tabs[6]:
         c3.metric("95% CI (upper)", f"{tf['p_hi']:.{_p6}f}")
         orig_p = expit(res["mu"])
         orig_lo = expit(res["ci_lo"]); orig_hi = expit(res["ci_hi"])
+        n_obs = len(res["yi"])
         st.dataframe(pd.DataFrame({
-            "Estimate":       ["Original (RE)",           "Trim-and-Fill adjusted"],
-            "Proportion":     [f"{orig_p:.{_p6}f}",     f"{tf['p_adj']:.{_p6}f}"],
-            "95% CI lower":   [f"{orig_lo:.{_p6}f}",    f"{tf['p_lo']:.{_p6}f}"],
-            "95% CI upper":   [f"{orig_hi:.{_p6}f}",    f"{tf['p_hi']:.{_p6}f}"],
-            "Studies (k)":    [str(len(res["yi"])),       str(len(res["yi"]) + k0)],
+            "Estimate":         ["Original (RE)",  "Trim-and-Fill adjusted"],
+            "Proportion":       [f"{orig_p:.{_p6}f}",  f"{tf['p_adj']:.{_p6}f}"],
+            "95% CI lower":     [f"{orig_lo:.{_p6}f}", f"{tf['p_lo']:.{_p6}f}"],
+            "95% CI upper":     [f"{orig_hi:.{_p6}f}", f"{tf['p_hi']:.{_p6}f}"],
+            "Observed studies": [str(n_obs),           str(n_obs)],
+            "Imputed (k0)":     ["—",                  str(k0)],
+            "Total (k + k0)":   [str(n_obs),            str(n_obs + k0)],
         }), use_container_width=True, hide_index=True)
+        st.caption(
+            "Imputed studies are synthetic mirror-image data points the method adds to "
+            "counterbalance detected funnel asymmetry — not additional real studies. "
+            "\"Total\" reflects the size of the corrected dataset used to compute the "
+            "adjusted estimate, not a change to your evidence base."
+        )
         fig_tf = funnel_plot_trimfill(res, tf, title="Funnel Plot — Trim-and-Fill Adjusted")
         st.pyplot(fig_tf, width="stretch")
         st.download_button("Download adjusted funnel plot", fig_png(fig_tf),
