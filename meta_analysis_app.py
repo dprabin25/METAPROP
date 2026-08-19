@@ -17,7 +17,7 @@ import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
 from matplotlib.transforms import blended_transform_factory
 
-st.set_page_config(page_title="Meta-Analysis", layout="wide", page_icon="📊")
+st.set_page_config(page_title="MetaPropA", layout="wide", page_icon="📊")
 
 CB = dict(blue="#0072B2", orange="#E69F00", green="#009E73", vermil="#D55E00",
           lblue="#56B4E9", pink="#CC79A7", black="#000000", grey="#777777")
@@ -71,7 +71,12 @@ h1 {
     background: linear-gradient(90deg, #0072B2 0%, #56B4E9 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text; letter-spacing:-0.01em;
+    font-size: 3.2rem !important;
+    line-height: 1.15 !important;
+    padding-bottom: 0.2rem;
 }
+[data-testid="stAppViewContainer"] .main h1 { font-size: 3.2rem !important; }
+[data-testid="stAppViewContainer"] .main [data-testid="stHeading"] h1 { font-size: 3.2rem !important; }
 
 /* ---- Tabs ---- */
 .stTabs [data-baseweb="tab-list"] {
@@ -80,31 +85,35 @@ h1 {
 }
 .stTabs [data-baseweb="tab"] {
     font-size:14px; font-weight:600; border-radius:10px; padding:8px 16px;
-    color:#4A5A80;
+    color:#0B2D6B;
 }
+.stTabs [data-baseweb="tab"] p { color:#0B2D6B !important; font-weight:600; }
 .stTabs [aria-selected="true"] {
     background: linear-gradient(90deg, #0072B2, #56B4E9) !important;
     color:#FFFFFF !important;
 }
+.stTabs [aria-selected="true"] p { color:#FFFFFF !important; }
 
 /* ---- Cards: metrics, dataframes, expanders ---- */
 [data-testid="stMetric"] {
     background:#FFFFFF; border-radius:14px; padding:14px 16px;
     box-shadow: 0 1px 4px rgba(20,30,60,0.08); border:1px solid #E7ECF7;
 }
-[data-testid="stMetricLabel"] { color:#5B6B93 !important; font-weight:600; }
-[data-testid="stMetricValue"] { color:#1A2744 !important; }
+[data-testid="stMetricLabel"] { color:#0B2D6B !important; font-weight:700; }
+[data-testid="stMetricValue"] { color:#0A2A57 !important; }
 
 [data-testid="stDataFrame"] {
     border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(20,30,60,0.06);
 }
 .streamlit-expanderHeader {
-    background:#FFFFFF; border-radius:10px; font-weight:600; color:#1A2744;
+    background:#FFFFFF; border-radius:10px; font-weight:600; color:#0A2A57;
 }
+.streamlit-expanderHeader p { color:#0A2A57 !important; }
 
 /* ---- Buttons ---- */
 .stButton > button, .stDownloadButton > button {
     border-radius:10px; font-weight:600; border:1px solid #DCE3F4;
+    color:#0A2A57;
 }
 .stButton > button[kind="primary"], .stDownloadButton > button[kind="primary"] {
     background: linear-gradient(90deg, #0072B2, #56B4E9);
@@ -116,13 +125,68 @@ h1 {
 
 /* ---- Alerts ---- */
 div[data-testid="stAlert"] { border-radius:12px; }
+div[data-testid="stAlert"] p { color:#0A2A57 !important; font-weight:600; }
+
+/* ---- Main-content widgets: dark navy text on every white box ---- */
+[data-testid="stAppViewContainer"] .main label,
+[data-testid="stAppViewContainer"] .main label p,
+[data-testid="stAppViewContainer"] .main .stMarkdown p,
+[data-testid="stAppViewContainer"] .main .stMarkdown li,
+[data-testid="stAppViewContainer"] .main .stCaption,
+[data-testid="stAppViewContainer"] .main [data-testid="stWidgetLabel"] p,
+[data-testid="stAppViewContainer"] .main [data-testid="stWidgetLabel"] label {
+    color:#0A2A57 !important;
+    font-weight:600;
+}
+[data-testid="stAppViewContainer"] .main div[data-baseweb="select"] > div,
+[data-testid="stAppViewContainer"] .main div[data-baseweb="select"] span,
+[data-testid="stAppViewContainer"] .main div[data-baseweb="select"] div,
+[data-testid="stAppViewContainer"] .main div[data-baseweb="input"] input,
+[data-testid="stAppViewContainer"] .main div[data-baseweb="base-input"] input,
+[data-testid="stAppViewContainer"] .main div[data-baseweb="textarea"] textarea,
+[data-testid="stAppViewContainer"] .main .stNumberInput input,
+[data-testid="stAppViewContainer"] .main .stTextInput input {
+    background:#FFFFFF !important;
+    color:#0A2A57 !important;
+    font-weight:600;
+}
+/* Dropdown option lists (rendered in a portal, still need dark text on white) */
+div[data-baseweb="popover"] li,
+div[data-baseweb="popover"] li *,
+div[data-baseweb="menu"] li,
+div[data-baseweb="menu"] li *,
+ul[role="listbox"] li,
+ul[role="listbox"] li * {
+    color:#0A2A57 !important;
+    background:#FFFFFF !important;
+}
+ul[role="listbox"] li:hover, ul[role="listbox"] li[aria-selected="true"] {
+    background:#EAF1FC !important;
+}
+/* Multiselect selected-value chips */
+[data-testid="stAppViewContainer"] .main span[data-baseweb="tag"] {
+    background:#0B2D6B !important; color:#FFFFFF !important;
+}
+[data-testid="stAppViewContainer"] .main span[data-baseweb="tag"] * { color:#FFFFFF !important; }
+/* Radio / checkbox option text */
+[data-testid="stAppViewContainer"] .main .stRadio label p,
+[data-testid="stAppViewContainer"] .main .stCheckbox label p {
+    color:#0A2A57 !important; font-weight:500;
+}
+/* File uploader text in main body */
+[data-testid="stAppViewContainer"] .main [data-testid="stFileUploaderDropzone"] {
+    background:#FFFFFF !important; border:1.5px dashed #A9BEE6 !important;
+}
+[data-testid="stAppViewContainer"] .main [data-testid="stFileUploaderDropzone"] * {
+    color:#0A2A57 !important;
+}
 
 /* ---- Footer / copyright ---- */
 .app-footer {
     margin-top: 48px; padding-top: 18px; border-top: 1px solid #DCE3F4;
-    text-align:center; color:#8593B8; font-size:12.5px; letter-spacing:.02em;
+    text-align:center; color:#0B2D6B; font-size:12.5px; letter-spacing:.02em;
 }
-.app-footer strong { color:#5B6B93; }
+.app-footer strong { color:#0A2A57; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -907,7 +971,7 @@ def load_and_clean(raw, sc, nc, cc):
 # =============================================================================
 # APP
 # =============================================================================
-st.title("Meta-Analysis  —  Proportion Pooling")
+st.title("MetaPropA")
 st.caption("Random-effects (DerSimonian-Laird tau2)  |  HKSJ correction  |  Logit transformation  |  Okabe-Ito palette")
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
