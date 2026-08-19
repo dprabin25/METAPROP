@@ -222,7 +222,12 @@ h1 {
 
 /* ---- Alerts ---- */
 div[data-testid="stAlert"] { border-radius:12px; }
-div[data-testid="stAlert"] p { color:#0A2A57 !important; font-weight:600; }
+div[data-testid="stAlert"] p,
+div[data-testid="stAlert"] p * {
+    color:#0A2A57 !important;
+    -webkit-text-fill-color:#0A2A57 !important;
+    font-weight:600;
+}
 
 /* ---- Main-content widgets: dark navy text on every white box ---- */
 [data-testid="stAppViewContainer"] .main label,
@@ -330,7 +335,11 @@ div[data-testid="stAlert"]:has(svg[data-testid="stIconMaterialError"]) { border-
 div[data-testid="stAlert"]:has(svg[data-testid="stIconMaterialWarning"]) { border-left-color:#E69F00; }
 /* Alerts inside the dark sidebar also get the white treatment */
 [data-testid="stSidebar"] div[data-testid="stAlert"] { background:#FFFFFF !important; }
-[data-testid="stSidebar"] div[data-testid="stAlert"] p { color:#0A2A57 !important; }
+[data-testid="stSidebar"] div[data-testid="stAlert"] p,
+[data-testid="stSidebar"] div[data-testid="stAlert"] p * {
+    color:#0A2A57 !important;
+    -webkit-text-fill-color:#0A2A57 !important;
+}
 
 /* ---- Inputs: focus ring in brand blue ---- */
 [data-testid="stAppViewContainer"] .main div[data-baseweb="select"]:focus-within > div,
@@ -1485,32 +1494,50 @@ with tabs[5]:
 with tabs[6]:
     st.subheader("Publication Bias Assessment")
     _p6 = tab_prec_control("prec_pubbias")
+
+    # Compute both tests once up front so the headline indicator and every
+    # section below (including Trim-and-Fill) all agree with each other.
+    has_min_studies = len(res["yi"]) >= 3
+    eg = egger_test(res["yi"], res["vi"]) if has_min_studies else None
+    bg = begg_test(res["yi"], res["vi"]) if has_min_studies else None
+    egger_sig = eg is not None and eg["pval"] < 0.10
+    begg_sig  = bg is not None and bg["pval"] < 0.10
+    bias_confirmed = egger_sig or begg_sig
+
+    # ── Headline Yes/No indicator ───────────────────────────────────────────
+    if not has_min_studies:
+        st.info("**Publication bias: Inconclusive** — Egger's and Begg's tests need ≥ 3 studies.")
+    elif bias_confirmed:
+        which_hdr = []
+        if egger_sig: which_hdr.append("Egger's")
+        if begg_sig:  which_hdr.append("Begg's")
+        st.error(f"**Publication bias: Yes** — detected by {' and '.join(which_hdr)} (p < 0.10).")
+    else:
+        st.success("**Publication bias: No** — neither Egger's nor Begg's test found significant asymmetry (p ≥ 0.10).")
+
     col_l, col_r = st.columns(2)
     with col_l:
         st.markdown("#### Egger's Test (Overall)")
-        if len(res["yi"]) >= 3:
-            eg = egger_test(res["yi"], res["vi"])
-            if eg:
-                st.dataframe(pd.DataFrame({
-                    "Statistic": ["Intercept","SE (intercept)","t-value","p-value"],
-                    "Value": [f"{eg['intercept']:.{_p6}f}", f"{eg['se_int']:.{_p6}f}",
-                              f"{eg['t']:.{_p6}f}", f"{eg['pval']:.{_p6}f}"],
-                }), use_container_width=True, hide_index=True)
-                if eg["pval"] < 0.10:
-                    st.warning("Egger p < 0.10 — possible funnel asymmetry.")
-                else:
-                    st.success("Egger p >= 0.10 — no significant asymmetry.")
+        if eg:
+            st.dataframe(pd.DataFrame({
+                "Statistic": ["Intercept","SE (intercept)","t-value","p-value"],
+                "Value": [f"{eg['intercept']:.{_p6}f}", f"{eg['se_int']:.{_p6}f}",
+                          f"{eg['t']:.{_p6}f}", f"{eg['pval']:.{_p6}f}"],
+            }), use_container_width=True, hide_index=True)
+            if egger_sig:
+                st.warning("Egger p < 0.10 — possible funnel asymmetry.")
+            else:
+                st.success("Egger p >= 0.10 — no significant asymmetry.")
         else:
             st.info("Egger's test requires >= 3 studies.")
     with col_r:
         st.markdown("#### Begg-Mazumdar Rank Correlation")
-        if len(res["yi"]) >= 3:
-            bg = begg_test(res["yi"], res["vi"])
+        if bg:
             st.dataframe(pd.DataFrame({
                 "Statistic": ["Kendall's tau","p-value"],
                 "Value": [f"{bg['tau']:.{_p6}f}", f"{bg['pval']:.{_p6}f}"],
             }), use_container_width=True, hide_index=True)
-            if bg["pval"] < 0.10:
+            if begg_sig:
                 st.warning("Begg p < 0.10 — significant rank correlation.")
             else:
                 st.success("Begg p >= 0.10 — no significant rank correlation.")
@@ -1519,14 +1546,7 @@ with tabs[6]:
     # ── Trim-and-Fill correction ─────────────────────────────────────────────────────
     st.markdown("---")
     st.subheader("Trim-and-Fill Correction (Duval & Tweedie, 2000)")
-    bias_confirmed = False
-    if len(res["yi"]) >= 3:
-        _eg = egger_test(res["yi"], res["vi"])
-        _bg = begg_test(res["yi"], res["vi"])
-        egger_sig = _eg is not None and _eg["pval"] < 0.10
-        begg_sig  = _bg["pval"] < 0.10
-        bias_confirmed = egger_sig or begg_sig
-    if len(res["yi"]) < 3:
+    if not has_min_studies:
         st.info("Trim-and-fill requires >= 3 studies.")
     elif not bias_confirmed:
         st.success(
