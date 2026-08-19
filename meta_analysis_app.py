@@ -2,7 +2,6 @@
 meta_analysis_app.py  —  Proportion meta-analysis, 9 tabs.
 Multiple grouping columns; ZIP save with structured folder output.
 """
-
 import io
 import re
 import zipfile
@@ -31,41 +30,133 @@ plt.rcParams.update({
     "figure.facecolor": "white", "axes.facecolor": "white",
 })
 
+# =============================================================================
+# STYLE  —  aesthetic theme + copyright footer
+# =============================================================================
 st.markdown("""
 <style>
-[data-testid="stSidebar"] { background:#EEF2FA; }
-[data-testid="stSidebar"] * { color:#1A2744 !important; }
-[data-testid="stSidebar"] label { color:#2C4A8A !important; font-weight:600; }
-[data-testid="stSidebar"] .stMarkdown p { color:#1A2744 !important; }
-.stTabs [data-baseweb="tab"] { font-size:14px; font-weight:600; }
-h1,h2,h3 { color:#1A2744; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+html, body, [class*="css"]  { font-family: 'Inter', sans-serif; }
+
+/* ---- App background ---- */
+[data-testid="stAppViewContainer"] > .main {
+    background: linear-gradient(180deg, #F4F7FC 0%, #EEF2FA 100%);
+}
+.block-container { padding-top: 1.6rem; padding-bottom: 3rem; max-width: 1400px; }
+
+/* ---- Sidebar ---- */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #101A33 0%, #16233F 100%);
+    border-right: 1px solid #223055;
+}
+[data-testid="stSidebar"] * { color:#E7ECF7 !important; }
+[data-testid="stSidebar"] label { color:#9FB4E0 !important; font-weight:600; }
+[data-testid="stSidebar"] .stMarkdown p { color:#C7D2EA !important; }
+[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+    color:#FFFFFF !important; letter-spacing:.02em;
+}
+[data-testid="stSidebar"] hr { border-color:#28345A; }
+[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"] > div,
+[data-testid="stSidebar"] .stMultiSelect div[data-baseweb="select"] > div {
+    background:#1B2747; border-radius:10px; border:1px solid #2C3A63;
+}
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
+    background:#1B2747; border:1.5px dashed #3A4C80; border-radius:12px;
+}
+
+/* ---- Headings ---- */
+h1, h2, h3 { color:#1A2744; font-weight:800; }
+h1 {
+    background: linear-gradient(90deg, #0072B2 0%, #56B4E9 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; letter-spacing:-0.01em;
+}
+
+/* ---- Tabs ---- */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 4px; background:#FFFFFF; padding:6px; border-radius:14px;
+    box-shadow: 0 1px 3px rgba(20,30,60,0.08);
+}
+.stTabs [data-baseweb="tab"] {
+    font-size:14px; font-weight:600; border-radius:10px; padding:8px 16px;
+    color:#4A5A80;
+}
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(90deg, #0072B2, #56B4E9) !important;
+    color:#FFFFFF !important;
+}
+
+/* ---- Cards: metrics, dataframes, expanders ---- */
+[data-testid="stMetric"] {
+    background:#FFFFFF; border-radius:14px; padding:14px 16px;
+    box-shadow: 0 1px 4px rgba(20,30,60,0.08); border:1px solid #E7ECF7;
+}
+[data-testid="stMetricLabel"] { color:#5B6B93 !important; font-weight:600; }
+[data-testid="stMetricValue"] { color:#1A2744 !important; }
+
+[data-testid="stDataFrame"] {
+    border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(20,30,60,0.06);
+}
+.streamlit-expanderHeader {
+    background:#FFFFFF; border-radius:10px; font-weight:600; color:#1A2744;
+}
+
+/* ---- Buttons ---- */
+.stButton > button, .stDownloadButton > button {
+    border-radius:10px; font-weight:600; border:1px solid #DCE3F4;
+}
+.stButton > button[kind="primary"], .stDownloadButton > button[kind="primary"] {
+    background: linear-gradient(90deg, #0072B2, #56B4E9);
+    border:none; color:#FFFFFF;
+}
+.stButton > button[kind="primary"]:hover, .stDownloadButton > button[kind="primary"]:hover {
+    filter:brightness(1.08);
+}
+
+/* ---- Alerts ---- */
+div[data-testid="stAlert"] { border-radius:12px; }
+
+/* ---- Footer / copyright ---- */
+.app-footer {
+    margin-top: 48px; padding-top: 18px; border-top: 1px solid #DCE3F4;
+    text-align:center; color:#8593B8; font-size:12.5px; letter-spacing:.02em;
+}
+.app-footer strong { color:#5B6B93; }
 </style>
 """, unsafe_allow_html=True)
+
+
+def render_footer():
+    st.markdown(
+        """
+        <div class="app-footer">
+            © 2025 <strong>Prabin Dawadi</strong>. All rights reserved.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
 # =============================================================================
 # HELPERS
 # =============================================================================
-
 def sanitize(s):
     """Make a string safe for use as a folder / file name."""
     return re.sub(r'[^\w\-]', '_', str(s)).strip('_') or 'unnamed'
-
 # =============================================================================
 # STATISTICS
 # =============================================================================
-
 def fleiss_cc(events, n, cc=0.5):
     e, s = events.astype(float).copy(), n.astype(float).copy()
     m = (e == 0) | (e == s)
     e[m] += cc; s[m] += 2*cc
     return e, s
-
 def logit_vi(events, n):
     e, s = fleiss_cc(np.asarray(events, float), np.asarray(n, float))
     yi = logit(e / s)
     vi = 1.0/e + 1.0/(s - e)
     return yi, vi
-
 def dl_heterogeneity(yi, vi):
     k = len(yi)
     if k < 2:
@@ -79,7 +170,6 @@ def dl_heterogeneity(yi, vi):
     pval_Q = float(1 - stats.chi2.cdf(Q, df))
     I2 = max(0.0, 100.0*(Q - df)/Q) if Q > df else 0.0
     return tau2, Q, df, pval_Q, I2
-
 def pool_re(yi, vi, tau2):
     k = len(yi)
     W = 1.0/(vi + tau2)
@@ -101,7 +191,6 @@ def pool_re(yi, vi, tau2):
     pi_hi = mu + t_pi*np.sqrt(tau2 + var_h)
     return dict(mu=mu, ci_lo=ci_lo, ci_hi=ci_hi,
                 pi_lo=pi_lo, pi_hi=pi_hi, var=var_h, W=W, k=k)
-
 def run_meta(df):
     yi, vi = logit_vi(df["Cases"].values, df["Sample"].values)
     tau2, Q, df_Q, pval_Q, I2 = dl_heterogeneity(yi, vi)
@@ -117,26 +206,21 @@ def run_meta(df):
     res["fe_ci_hi"] = mu_fe + t_crit * np.sqrt(var_fe)
     res["W_fe"]     = W_fe
     return res
-
 def fig_png(fig, dpi=150):
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
     return buf.getvalue()
-
 def fmt(v, prec=None):
     """Format a float to the globally selected decimal places."""
     p = st.session_state.get("global_prec", 4) if prec is None else prec
     return f"{v:.{p}f}"
-
 def fmt_pct(v, prec=None):
     """Format a back-transformed proportion as a percentage string."""
     p = st.session_state.get("pct_prec", 2) if prec is None else prec
     return f"{float(expit(v))*100:.{p}f}%"
-
 # =============================================================================
 # FOREST PLOTS
 # =============================================================================
-
 def _iq_box(ax, res):
     re_p = expit(res["mu"]);    re_lo = expit(res["ci_lo"]); re_hi = expit(res["ci_hi"])
     fe_p = expit(res["fe_mu"]); fe_lo = expit(res["fe_ci_lo"]); fe_hi = expit(res["fe_ci_hi"])
@@ -151,8 +235,6 @@ def _iq_box(ax, res):
             family="monospace", color="#D0D8E8", clip_on=False,
             bbox=dict(boxstyle="round,pad=0.45", fc="#1A2744",
                       ec="#0A1628", alpha=0.97, lw=1.2))
-
-
 def forest_overall(df, res):
     n = len(df)
     yi, vi, W = res["yi"], res["vi"], res["W"]
@@ -160,14 +242,12 @@ def forest_overall(df, res):
     fig, ax = plt.subplots(figsize=(13, fig_h))
     fig.subplots_adjust(left=0.24, right=0.66, top=0.93, bottom=0.16)
     tr = blended_transform_factory(ax.transAxes, ax.transData)
-
     ax.text(1.03, n+1.5, "Proportion  [95% CI]",
             transform=tr, fontsize=10, fontweight="bold",
             va="center", ha="left", clip_on=False)
     ax.text(1.38, n+1.5, "Weight",
             transform=tr, fontsize=10, fontweight="bold",
             va="center", ha="left", clip_on=False)
-
     total_W = W.sum()
     for i, row in enumerate(df.itertuples(index=False)):
         y = n - i
@@ -185,7 +265,6 @@ def forest_overall(df, res):
         ax.text(1.38, y, f"{pct:.1f}%",
                 transform=tr, fontsize=9.5, va="center", ha="left",
                 clip_on=False, color=CB["grey"])
-
     m  = expit(res["mu"]); cl = expit(res["ci_lo"]); ch = expit(res["ci_hi"])
     plo = expit(res["pi_lo"]); phi_v = expit(res["pi_hi"])
     ax.fill([cl, m, ch, m], [0, 0.42, 0, -0.42], color=CB["vermil"], zorder=4, alpha=0.93)
@@ -205,7 +284,6 @@ def forest_overall(df, res):
             fontweight="bold", color=CB["blue"], clip_on=False)
     ax.text(1.38, -1, "100%", transform=tr, fontsize=10, va="center", ha="left",
             fontweight="bold", color=CB["blue"], clip_on=False)
-
     ax.set_yticks(list(range(n, 0, -1)) + [0, -1])
     ax.set_yticklabels(list(df["Study_ID"]) + ["RE (pooled)", "FE (pooled)"], fontsize=10)
     ax.set_xlim(0, 1); ax.set_ylim(-2.2, n+2.5)
@@ -221,12 +299,9 @@ def forest_overall(df, res):
                label="95% Prediction interval (RE)"),
     ], fontsize=9, loc="upper right", framealpha=0.88, edgecolor="#CCC")
     return fig
-
-
 def forest_subgroup(df, res_overall, group_col):
     groups = sorted(df[group_col].astype(str).unique())
     g_color = {g: PAL[i % len(PAL)] for i, g in enumerate(groups)}
-
     rows = []
     for g in groups:
         sub = df[df[group_col].astype(str) == g].reset_index(drop=True)
@@ -245,18 +320,15 @@ def forest_subgroup(df, res_overall, group_col):
         rows.append({"t":"pool", "lbl":f"{g} (pooled)", "res":r, "g":g})
         rows.append({"t":"gap"})
     rows.append({"t":"overall", "lbl":"Overall (pooled)", "res":res_overall})
-
     nr = len(rows)
     fig_h = max(6.5, nr*0.42 + 3.0)
     fig, ax = plt.subplots(figsize=(14, fig_h))
     fig.subplots_adjust(left=0.26, right=0.66, top=0.95, bottom=0.12)
     tr = blended_transform_factory(ax.transAxes, ax.transData)
-
     y = nr + 1; yticks = []; ylabels = []
     ax.text(1.03, y-0.3, "Proportion  [95% CI]",
             transform=tr, fontsize=10, fontweight="bold",
             va="center", ha="left", clip_on=False)
-
     for row in rows:
         y -= 1; rt = row["t"]
         if rt == "gap":
@@ -300,7 +372,6 @@ def forest_subgroup(df, res_overall, group_col):
                     transform=tr, fontsize=10.5, va="center", ha="left",
                     fontweight="bold", color=CB["vermil"], clip_on=False)
             yticks.append(y); ylabels.append(f"  {row['lbl']}")
-
     ax.set_yticks(yticks); ax.set_yticklabels(ylabels, fontsize=10)
     ax.set_xlim(0, 1); ax.set_ylim(-0.6, nr+2.2)
     ax.set_xlabel("Proportion (95% CI)", fontsize=12, labelpad=5)
@@ -308,11 +379,9 @@ def forest_subgroup(df, res_overall, group_col):
                  fontsize=14, fontweight="bold", pad=10)
     _iq_box(ax, res_overall)
     return fig
-
 # =============================================================================
 # FUNNEL PLOT
 # =============================================================================
-
 def funnel_plot(res, df, group_col=None, title="Funnel Plot"):
     yi = res["yi"]; vi = res["vi"]; mu = res["mu"]
     se = np.sqrt(vi); max_se = se.max()*1.18
@@ -323,7 +392,6 @@ def funnel_plot(res, df, group_col=None, title="Funnel Plot"):
     ax.plot(mu - 1.96*se_r, se_r, color=CB["grey"], lw=1.0, ls="--", label="95% pseudo-CI")
     ax.plot(mu + 1.96*se_r, se_r, color=CB["grey"], lw=1.0, ls="--")
     ax.axvline(mu, color=CB["vermil"], lw=1.5, alpha=0.7, label="Pooled estimate")
-
     if group_col and group_col in df.columns:
         groups = sorted(df[group_col].astype(str).unique())
         for i, g in enumerate(groups):
@@ -334,18 +402,15 @@ def funnel_plot(res, df, group_col=None, title="Funnel Plot"):
     else:
         ax.scatter(yi, se, color=CB["blue"], s=62, alpha=0.85,
                    edgecolors=CB["black"], linewidths=0.4, zorder=3)
-
     ax.set_ylim(max_se, -max_se*0.02)
     ax.set_xlabel("Logit proportion (effect size)", fontsize=12)
     ax.set_ylabel("Standard Error", fontsize=12)
     ax.set_title(title, fontsize=14, fontweight="bold", pad=10)
     ax.legend(fontsize=9, framealpha=0.85)
     return fig
-
 # =============================================================================
 # PUBLICATION BIAS TESTS
 # =============================================================================
-
 def egger_test(yi, vi):
     sei = np.sqrt(vi); prec = 1.0/sei; z_std = yi/sei
     X = np.column_stack([np.ones_like(prec), prec])
@@ -359,11 +424,9 @@ def egger_test(yi, vi):
     t_int = b[0]/se_b[0]
     pval = float(2*stats.t.sf(abs(t_int), df=len(yi)-2))
     return dict(intercept=float(b[0]), se_int=float(se_b[0]), t=float(t_int), pval=pval)
-
 def begg_test(yi, vi):
     tau, pval = stats.kendalltau(yi, np.sqrt(vi))
     return dict(tau=float(tau), pval=float(pval))
-
 def trim_and_fill(yi, vi, estimator="L0", maxiter=100):
     """
     Duval & Tweedie (2000) trim-and-fill correction.
@@ -372,16 +435,13 @@ def trim_and_fill(yi, vi, estimator="L0", maxiter=100):
                   mu_adj, ci_lo, ci_hi on logit scale; p_adj, p_lo, p_hi on proportion scale.
     """
     k = len(yi)
-
     def _re_pool(y, v):
         tau2 = max(0.0, dl_heterogeneity(y, v)[0])
         w = 1.0 / (v + tau2)
         mu = np.dot(w, y) / w.sum()
         return mu, tau2
-
     mu, _ = _re_pool(yi, vi)
     k0_prev, k0 = -1, 0
-
     for _ in range(maxiter):
         yi_c = yi - mu
         ranks = stats.rankdata(np.abs(yi_c))
@@ -393,19 +453,16 @@ def trim_and_fill(yi, vi, estimator="L0", maxiter=100):
             T_n = float(np.sum(ranks[yi_c > 0])) - n_pos * (n_pos + 1) / 2.0
             denom = k - T_n / max(k, 1)
             k0 = max(0, int(np.round(T_n / denom))) if denom > 0 else 0
-
         k0 = min(k0, k - 2)          # keep at least 2 studies
         if k0 == k0_prev:
             break
         k0_prev = k0
-
         # Trim k0 most extreme studies on the positive (right) side
         order = np.argsort(yi)[::-1]  # largest first
         keep = np.sort(order[k0:])
         if len(keep) < 2:
             k0 = 0; break
         mu, _ = _re_pool(yi[keep], vi[keep])
-
     # Fill: add mirror images of the trimmed studies
     if k0 > 0:
         order = np.argsort(yi)[::-1]
@@ -415,7 +472,6 @@ def trim_and_fill(yi, vi, estimator="L0", maxiter=100):
     else:
         filled_yi = yi.copy()
         filled_vi = vi.copy()
-
     # Final pooled estimate using all (observed + filled) studies
     mu_adj, tau2_adj = _re_pool(filled_yi, filled_vi)
     w_adj = 1.0 / (filled_vi + tau2_adj)
@@ -424,7 +480,6 @@ def trim_and_fill(yi, vi, estimator="L0", maxiter=100):
     t_crit = stats.t.ppf(0.975, df=max(1, k_all - 1))
     ci_lo = mu_adj - t_crit * se_adj
     ci_hi = mu_adj + t_crit * se_adj
-
     return dict(
         k0=k0,
         filled_yi=filled_yi,
@@ -437,7 +492,6 @@ def trim_and_fill(yi, vi, estimator="L0", maxiter=100):
         p_lo=float(expit(ci_lo)),
         p_hi=float(expit(ci_hi)),
     )
-
 def funnel_plot_trimfill(res, tf, title="Funnel Plot — Trim-and-Fill"):
     """
     Funnel plot showing observed studies (filled circles) and
@@ -448,45 +502,37 @@ def funnel_plot_trimfill(res, tf, title="Funnel Plot — Trim-and-Fill"):
     mu_orig = res["mu"]
     mu_adj  = tf["mu_adj"]
     k_obs   = len(yi_obs)
-
     all_yi = tf["filled_yi"]; all_vi = tf["filled_vi"]
     all_se = np.sqrt(all_vi)
     max_se = all_se.max() * 1.18
-
     fig, ax = plt.subplots(figsize=(7, 6))
     fig.subplots_adjust(left=0.13, right=0.95, top=0.90, bottom=0.12)
     se_r = np.linspace(0, max_se, 300)
-
     # Pseudo-CI cone around adjusted estimate
     ax.fill_betweenx(se_r, mu_adj - 1.96*se_r, mu_adj + 1.96*se_r,
                      alpha=0.10, color=CB["grey"])
     ax.plot(mu_adj - 1.96*se_r, se_r, color=CB["grey"], lw=1.0, ls="--", label="95% pseudo-CI (adjusted)")
     ax.plot(mu_adj + 1.96*se_r, se_r, color=CB["grey"], lw=1.0, ls="--")
-
     # Original pooled estimate line
     ax.axvline(mu_orig, color=CB["vermil"], lw=1.5, alpha=0.65, ls="--", label=f"Original estimate ({expit(mu_orig):.3f})")
     # Adjusted pooled estimate line
     ax.axvline(mu_adj,  color=CB["blue"],   lw=1.8, alpha=0.85, label=f"Adjusted estimate ({expit(mu_adj):.3f})")
-
     # Observed studies
     se_obs = np.sqrt(vi_obs)
     ax.scatter(yi_obs, se_obs, color=CB["blue"], s=62, alpha=0.85,
                edgecolors=CB["black"], linewidths=0.5, zorder=4, label="Observed studies")
-
     # Imputed studies
     if tf["k0"] > 0:
         yi_imp = all_yi[k_obs:]; se_imp = all_se[k_obs:]
         ax.scatter(yi_imp, se_imp, color="white", s=62, alpha=0.95,
                    edgecolors=CB["vermil"], linewidths=1.5, zorder=4,
                    marker="o", label=f"Imputed studies (k₀={tf['k0']})")
-
     ax.set_ylim(max_se, -max_se * 0.02)
     ax.set_xlabel("Logit proportion (effect size)", fontsize=12)
     ax.set_ylabel("Standard Error", fontsize=12)
     ax.set_title(title, fontsize=14, fontweight="bold", pad=10)
     ax.legend(fontsize=9, framealpha=0.90)
     return fig
-
 def subgroup_funnel_grid(df, group_col):
     groups = sorted(df[group_col].astype(str).unique())
     nc = min(3, len(groups)); nr = (len(groups) + nc - 1)//nc
@@ -518,11 +564,9 @@ def subgroup_funnel_grid(df, group_col):
                  fontsize=13, fontweight="bold", y=1.01)
     plt.tight_layout()
     return fig
-
 # =============================================================================
 # META-REGRESSION
 # =============================================================================
-
 def meta_regression(df, res, moderator):
     yi, vi, tau2 = res["yi"], res["vi"], res["tau2"]
     W = 1.0/(vi + tau2)
@@ -595,11 +639,9 @@ def meta_regression(df, res, moderator):
     ax.set_title(f"Meta-Regression: Proportion ~ {moderator}", fontsize=13, fontweight="bold")
     ax.spines["top"].set_visible(False); ax.spines["right"].set_visible(False)
     return coef_table, stats_d, fig
-
 # =============================================================================
 # CORRELATIONS
 # =============================================================================
-
 def correlation_heatmap(df, cols, method="pearson"):
     sub = df[cols].apply(pd.to_numeric, errors="coerce").dropna()
     if len(sub) < 3: return None
@@ -620,15 +662,12 @@ def correlation_heatmap(df, cols, method="pearson"):
     ax.set_title(f"{method.capitalize()} Correlation Matrix", fontsize=13, fontweight="bold", pad=10)
     plt.tight_layout()
     return fig
-
 # =============================================================================
 # ZIP GENERATION
 # =============================================================================
-
 def generate_zip(analysis_df, excluded_df, res, group_cols, sample_col, cases_col):
     """
     Build a ZIP in memory with structured folders:
-
     {sample_col}__{cases_col}/
     ├── data/
     │   ├── cleaned_data.csv
@@ -649,19 +688,15 @@ def generate_zip(analysis_df, excluded_df, res, group_cols, sample_col, cases_co
     """
     buf = io.BytesIO()
     root = sanitize(f"{sample_col}__{cases_col}")
-
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
-
         # ── data/ ──────────────────────────────────────────────────────────
         zf.writestr(f"{root}/data/cleaned_data.csv", analysis_df.to_csv(index=False))
         if not excluded_df.empty:
             zf.writestr(f"{root}/data/excluded_data.csv", excluded_df.to_csv(index=False))
-
         # ── overall/ ───────────────────────────────────────────────────────
         m_p  = expit(res["mu"]);    ci_l = expit(res["ci_lo"]); ci_h = expit(res["ci_hi"])
         pi_l = expit(res["pi_lo"]); pi_h = expit(res["pi_hi"])
         fe_p = expit(res["fe_mu"]); fe_l = expit(res["fe_ci_lo"]); fe_h = expit(res["fe_ci_hi"])
-
         stats_rows = [
             {"Model": "RE (DL+HKSJ)", "k": res["k"],
              "Pooled": f"{m_p:.4f}", "CI_lo": f"{ci_l:.4f}", "CI_hi": f"{ci_h:.4f}",
@@ -674,7 +709,6 @@ def generate_zip(analysis_df, excluded_df, res, group_cols, sample_col, cases_co
         ]
         zf.writestr(f"{root}/overall/summary_stats.csv",
                     pd.DataFrame(stats_rows).to_csv(index=False))
-
         # Per-study results
         study_rows = []
         for i, row in enumerate(analysis_df.itertuples(index=False)):
@@ -691,7 +725,6 @@ def generate_zip(analysis_df, excluded_df, res, group_cols, sample_col, cases_co
             })
         zf.writestr(f"{root}/overall/per_study_results.csv",
                     pd.DataFrame(study_rows).to_csv(index=False))
-
         # Publication bias
         if len(res["yi"]) >= 3:
             eg = egger_test(res["yi"], res["vi"])
@@ -729,25 +762,20 @@ def generate_zip(analysis_df, excluded_df, res, group_cols, sample_col, cases_co
                                                   title="Funnel Plot — Trim-and-Fill Adjusted")
                 zf.writestr(f"{root}/overall/funnel_trimfill.png", fig_png(fig_tf_zip))
                 plt.close(fig_tf_zip)
-
         # Forest overall
         fig_fo = forest_overall(analysis_df, res)
         zf.writestr(f"{root}/overall/forest_overall.png", fig_png(fig_fo))
         plt.close(fig_fo)
-
         # Funnel overall
         fig_fun = funnel_plot(res, analysis_df, title="Funnel Plot — Overall")
         zf.writestr(f"{root}/overall/funnel_overall.png", fig_png(fig_fun))
         plt.close(fig_fun)
-
         # ── subgroups/ ─────────────────────────────────────────────────────
         for gc in group_cols:
             gc_safe = sanitize(gc)
             groups = sorted(analysis_df[gc].astype(str).unique())
-
             if len(groups) < 2:
                 continue
-
             # Group summary CSV
             sg_rows = []
             for g in groups:
@@ -764,17 +792,14 @@ def generate_zip(analysis_df, excluded_df, res, group_cols, sample_col, cases_co
                 })
             zf.writestr(f"{root}/subgroups/{gc_safe}/group_summary.csv",
                         pd.DataFrame(sg_rows).to_csv(index=False))
-
             # Subgroup forest
             fig_sg = forest_subgroup(analysis_df, res, gc)
             zf.writestr(f"{root}/subgroups/{gc_safe}/forest_subgroup.png", fig_png(fig_sg))
             plt.close(fig_sg)
-
             # Subgroup funnel grid
             fig_sfg = subgroup_funnel_grid(analysis_df, gc)
             zf.writestr(f"{root}/subgroups/{gc_safe}/funnel_subgroups.png", fig_png(fig_sfg))
             plt.close(fig_sfg)
-
             # Per-group-value subfolders
             for g in groups:
                 g_safe = sanitize(g)
@@ -782,7 +807,6 @@ def generate_zip(analysis_df, excluded_df, res, group_cols, sample_col, cases_co
                 if len(sub) < 2:
                     continue
                 r_sub = run_meta(sub)
-
                 # Per-subgroup stats CSV
                 sub_stats = [{
                     "Group": g, "k": r_sub["k"],
@@ -797,7 +821,6 @@ def generate_zip(analysis_df, excluded_df, res, group_cols, sample_col, cases_co
                     f"{root}/subgroups/{gc_safe}/{g_safe}/stats.csv",
                     pd.DataFrame(sub_stats).to_csv(index=False)
                 )
-
                 # Per-subgroup forest plot
                 fig_sub = forest_overall(sub, r_sub)
                 fig_sub.axes[0].set_title(
@@ -809,14 +832,11 @@ def generate_zip(analysis_df, excluded_df, res, group_cols, sample_col, cases_co
                     fig_png(fig_sub)
                 )
                 plt.close(fig_sub)
-
     buf.seek(0)
     return buf.getvalue()
-
 # =============================================================================
 # DUMMY DATA
 # =============================================================================
-
 DUMMY_CSV = (
     "Study_ID,Sample,Cases,Risk_Category,Year,Region,Mean_Age,Pct_Male,"
     "Follow_up_months,Study_Design,Quality_Score,Country_Income\n"
@@ -851,11 +871,9 @@ DUMMY_CSV = (
     "Petrov 2022,,38,Low risk,2022,Europe,49.3,56.8,12,Cross-sectional,5,High\n"
     "Lee 2020,380,67,NR,2020,Asia,54.6,46.1,18,Cohort,8,Upper-middle\n"
 )
-
 # =============================================================================
 # DATA CLEANING
 # =============================================================================
-
 def load_and_clean(raw, sc, nc, cc):
     df = raw.copy()
     for target, source in [("Study_ID", sc), ("Sample", nc), ("Cases", cc)]:
@@ -886,40 +904,50 @@ def load_and_clean(raw, sc, nc, cc):
     clean["Sample"] = pd.to_numeric(clean["Sample"])
     clean["Cases"]  = pd.to_numeric(clean["Cases"])
     return clean, excl
-
 # =============================================================================
 # APP
 # =============================================================================
-
 st.title("Meta-Analysis  —  Proportion Pooling")
 st.caption("Random-effects (DerSimonian-Laird tau2)  |  HKSJ correction  |  Logit transformation  |  Okabe-Ito palette")
-
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## Setup")
     uploaded = st.file_uploader("Upload CSV", type=["csv"])
     if not uploaded:
         st.download_button("Download demo CSV", DUMMY_CSV, "demo_meta_data.csv", "text/csv")
-
     raw_df = pd.read_csv(uploaded) if uploaded else pd.read_csv(io.StringIO(DUMMY_CSV))
     all_cols = raw_df.columns.tolist()
 
-    def guess(kws, fallback=None):
-        for kw in kws:
-            for c in all_cols:
-                if kw.lower() in c.lower(): return c
-        return fallback or all_cols[0]
-
     st.markdown("### Column mapping")
-    st.caption("Map your CSV columns to the required fields for analysis.")
-    def safe_index(col):
-        return all_cols.index(col) if col in all_cols else 0
-    study_col  = st.selectbox("Study ID",       all_cols, index=safe_index(guess(["study","id","author"])))
-    sample_col = st.selectbox("Sample (n)",     all_cols, index=safe_index(guess(["sample","total","n"],"Sample")))
-    cases_col  = st.selectbox("Cases / Events", all_cols, index=safe_index(guess(["case","event","count"],"Cases")))
+    st.caption(
+        "Manually map your CSV columns to the required fields — "
+        "nothing is auto-detected, so pick each one explicitly."
+    )
+
+    PLACEHOLDER = "— Select a column —"
+    col_options = [PLACEHOLDER] + all_cols
+
+    study_col  = st.selectbox("Study ID",       col_options, index=0, key="map_study")
+    sample_col = st.selectbox("Sample (n)",     col_options, index=0, key="map_sample")
+    cases_col  = st.selectbox("Cases / Events", col_options, index=0, key="map_cases")
+
+    missing = [
+        label for label, val in
+        [("Study ID", study_col), ("Sample (n)", sample_col), ("Cases / Events", cases_col)]
+        if val == PLACEHOLDER
+    ]
+    if missing:
+        st.info(
+            "Select a column for: **" + ", ".join(missing) + "** to continue."
+        )
+        render_footer()
+        st.stop()
+    if len({study_col, sample_col, cases_col}) < 3:
+        st.error("Study ID, Sample (n), and Cases / Events must each be a different column.")
+        render_footer()
+        st.stop()
 
     cleaned_df, excluded_df = load_and_clean(raw_df, study_col, sample_col, cases_col)
-
     # ── Group by  (multi-select) ───────────────────────────────────────────
     st.markdown("### Group by")
     st.caption("Select one or more columns to define subgroups. Each gets its own analysis and folder in the saved output.")
@@ -927,15 +955,13 @@ with st.sidebar:
     group_cols = st.multiselect(
         "Group by … (select multiple)",
         group_candidates,
-        default=[group_candidates[0]] if group_candidates else [],
+        default=[],
     )
     # Primary group col — used where a single column is required (focus filter, funnel colouring)
     group_col = group_cols[0] if group_cols else None
-
     # ── Filters ────────────────────────────────────────────────────────────
     st.markdown("### Filters")
     manual_excl = st.multiselect("Manually exclude studies", cleaned_df["Study_ID"].tolist())
-
     if group_col:
         sg_opts  = ["All groups"] + sorted(cleaned_df[group_col].astype(str).unique())
         sg_focus = st.selectbox(f"Focus on {group_col}", sg_opts,
@@ -943,13 +969,11 @@ with st.sidebar:
                                      "Only applies to the primary (first) Group by column.")
     else:
         sg_focus = "All groups"
-
     analysis_df = cleaned_df.copy()
     if manual_excl:
         analysis_df = analysis_df[~analysis_df["Study_ID"].isin(manual_excl)].reset_index(drop=True)
     if sg_focus != "All groups" and group_col:
         analysis_df = analysis_df[analysis_df[group_col].astype(str) == sg_focus].reset_index(drop=True)
-
     # ── Display precision ──────────────────────────────────────────────────
     st.markdown("---")
     st.markdown("### Display precision")
@@ -965,14 +989,12 @@ with st.sidebar:
         help="Decimal places for back-transformed proportions shown as percentages (e.g. 2 → 63.47%).",
         key="pct_prec",
     )
-
     st.markdown("---")
     st.markdown(f"Studies in analysis: **{len(analysis_df)}**")
     st.markdown(f"Excluded: **{len(excluded_df) + len(manual_excl)}**")
     for gc in group_cols:
         n_g = analysis_df[gc].astype(str).nunique()
         st.markdown(f"Groups ({gc}): **{n_g}**")
-
     # ── SAVE ───────────────────────────────────────────────────────────────
     st.markdown("---")
     st.markdown("### 💾 Save All Outputs")
@@ -981,7 +1003,6 @@ with st.sidebar:
         f"`{sanitize(sample_col)}__{sanitize(cases_col)}/`\n"
         "  `data/`  `overall/`  `subgroups/{group}/{value}/`"
     )
-
     if st.button("Generate ZIP", type="primary", use_container_width=True):
         if len(analysis_df) >= 2:
             with st.spinner("Building outputs…"):
@@ -995,7 +1016,6 @@ with st.sidebar:
                 )
         else:
             st.error("Need ≥ 2 studies to generate outputs.")
-
     if "zip_bytes" in st.session_state:
         st.download_button(
             "⬇️ Download ZIP  (Save As…)",
@@ -1006,13 +1026,12 @@ with st.sidebar:
         )
         st.caption("Your browser's Save As dialog will open.")
 
+    render_footer()
 # ── Guard ──────────────────────────────────────────────────────────────────────
 if len(analysis_df) < 2:
     st.error("Need >= 2 valid studies. Check column mapping or filters.")
     st.stop()
-
 res = run_meta(analysis_df)
-
 # ── Tabs ───────────────────────────────────────────────────────────────────────
 tabs = st.tabs([
     "Cleaned Data", "Excluded Data", "Summary Stats",
@@ -1020,14 +1039,12 @@ tabs = st.tabs([
     "Funnel Plot", "Publication Bias",
     "Meta-Regression", "Correlations",
 ])
-
 # ── 0 Cleaned Data ─────────────────────────────────────────────────────────────
 with tabs[0]:
     st.subheader("Cleaned Data")
     st.caption(f"{len(cleaned_df)} studies passed all quality checks")
     st.dataframe(cleaned_df, use_container_width=True, hide_index=True)
     st.download_button("Download cleaned CSV", cleaned_df.to_csv(index=False), "cleaned.csv")
-
 # ── 1 Excluded Data ─────────────────────────────────────────────────────────────
 with tabs[1]:
     st.subheader("Excluded Data")
@@ -1037,7 +1054,6 @@ with tabs[1]:
         st.caption(f"{len(excluded_df)} rows excluded — reasons shown in last column")
         st.dataframe(excluded_df, use_container_width=True, hide_index=True)
         st.download_button("Download excluded CSV", excluded_df.to_csv(index=False), "excluded.csv")
-
 # ── 2 Summary Stats ─────────────────────────────────────────────────────────────
 with tabs[2]:
     st.subheader("Summary Statistics")
@@ -1061,7 +1077,6 @@ with tabs[2]:
     cf1.metric("FE Pooled",         f"{fe_p:.{_p}f}")
     cf2.metric("95% CI (FE)",       f"[{fe_l:.{_p}f}, {fe_h:.{_p}f}]")
     cf3.metric("Note", "Assumes homogeneity")
-
     st.markdown("---")
     st.subheader("Per-Study Results")
     study_rows = []
@@ -1076,7 +1091,6 @@ with tabs[2]:
             r_dict[gc] = getattr(row, gc, "")
         study_rows.append(r_dict)
     st.dataframe(pd.DataFrame(study_rows), use_container_width=True, hide_index=True)
-
     # Group summaries for every selected group col
     for gc in group_cols:
         st.markdown("---")
@@ -1095,7 +1109,6 @@ with tabs[2]:
                 "Q": f"{r_['Q']:.{PREC}f}", "p(het)": f"{r_['pval_Q']:.{PREC}f}",
             })
         st.dataframe(pd.DataFrame(sg_rows), use_container_width=True, hide_index=True)
-
 # ── 3 Forest (Overall) ──────────────────────────────────────────────────────────
 with tabs[3]:
     st.subheader("Forest Plot — Overall")
@@ -1113,7 +1126,6 @@ with tabs[3]:
     finally:
         if "fig" in locals() and fig is not None:
             plt.close(fig)
-
 # ── 4 Forest (Subgroup) ─────────────────────────────────────────────────────────
 with tabs[4]:
     st.subheader("Forest Plot — Subgroup")
@@ -1145,7 +1157,6 @@ with tabs[4]:
                     finally:
                         if "fig_sg" in locals() and fig_sg is not None:
                             plt.close(fig_sg)
-
 # ── 5 Funnel Plot ───────────────────────────────────────────────────────────────
 with tabs[5]:
     st.subheader("Funnel Plot")
@@ -1156,7 +1167,6 @@ with tabs[5]:
     st.pyplot(fig, width="stretch")
     st.download_button("Download funnel plot", fig_png(fig), "funnel.png", "image/png")
     plt.close(fig)
-
 # ── 6 Publication Bias ──────────────────────────────────────────────────────────
 with tabs[6]:
     st.subheader("Publication Bias Assessment")
@@ -1191,11 +1201,9 @@ with tabs[6]:
                 st.success("Begg p >= 0.10 — no significant rank correlation.")
         else:
             st.info("Begg's test requires >= 3 studies.")
-
     # ── Trim-and-Fill correction ─────────────────────────────────────────────────────
     st.markdown("---")
     st.subheader("Trim-and-Fill Correction (Duval & Tweedie, 2000)")
-
     bias_confirmed = False
     if len(res["yi"]) >= 3:
         _eg = egger_test(res["yi"], res["vi"])
@@ -1203,7 +1211,6 @@ with tabs[6]:
         egger_sig = _eg is not None and _eg["pval"] < 0.10
         begg_sig  = _bg["pval"] < 0.10
         bias_confirmed = egger_sig or begg_sig
-
     if len(res["yi"]) < 3:
         st.info("Trim-and-fill requires >= 3 studies.")
     elif not bias_confirmed:
@@ -1227,7 +1234,6 @@ with tabs[6]:
         tf_estimator = st.selectbox("Estimator", ["L0", "R0"], key="tf_est")
         tf = trim_and_fill(res["yi"], res["vi"], estimator=tf_estimator)
         st.session_state["tf_result"] = tf
-
     tf = st.session_state.get("tf_result")
     if tf is not None:
         k0 = tf["k0"]
@@ -1235,14 +1241,12 @@ with tabs[6]:
             st.info("Trim-and-fill found no asymmetry to correct (k0 = 0). Estimates unchanged.")
         else:
             st.markdown(f"**Studies imputed (k0):** {k0}")
-
         c1, c2, c3 = st.columns(3)
         c1.metric("Adjusted proportion",
                   f"{tf['p_adj']:.{PREC}f}",
                   delta=f"{tf['p_adj'] - expit(res['mu']):.{PREC}f} vs. original")
         c2.metric("95% CI (lower)", f"{tf['p_lo']:.{PREC}f}")
         c3.metric("95% CI (upper)", f"{tf['p_hi']:.{PREC}f}")
-
         orig_p = expit(res["mu"])
         orig_lo = expit(res["ci_lo"]); orig_hi = expit(res["ci_hi"])
         st.dataframe(pd.DataFrame({
@@ -1252,13 +1256,11 @@ with tabs[6]:
             "95% CI upper":   [f"{orig_hi:.{PREC}f}",    f"{tf['p_hi']:.{PREC}f}"],
             "Studies (k)":    [str(len(res["yi"])),       str(len(res["yi"]) + k0)],
         }), use_container_width=True, hide_index=True)
-
         fig_tf = funnel_plot_trimfill(res, tf, title="Funnel Plot — Trim-and-Fill Adjusted")
         st.pyplot(fig_tf, width="stretch")
         st.download_button("Download adjusted funnel plot", fig_png(fig_tf),
                            "funnel_trimfill.png", "image/png", key="dl_tf_funnel")
         plt.close(fig_tf)
-
     st.markdown("---")
     st.subheader("Funnel Plot — Overall")
     fig = funnel_plot(res, analysis_df,
@@ -1266,7 +1268,6 @@ with tabs[6]:
                       title="Funnel Plot (Overall)")
     st.pyplot(fig, width="stretch")
     plt.close(fig)
-
     if group_cols:
         st.markdown("---")
         for gc in group_cols:
@@ -1285,7 +1286,6 @@ with tabs[6]:
                 plt.close(fig_sf)
             else:
                 st.info(f"Need >= 2 groups. '{gc}' has only {n_g}.")
-
 # ── 7 Meta-Regression ───────────────────────────────────────────────────────────────────
 with tabs[7]:
     st.subheader("Meta-Regression")
@@ -1312,7 +1312,6 @@ with tabs[7]:
                 st.download_button("Download plot", fig_png(fig_mr),
                                    "meta_regression.png", "image/png")
                 plt.close(fig_mr)
-
 # ── 8 Correlations ──────────────────────────────────────────────────────────────────────────
 with tabs[8]:
     st.subheader("Correlation Analysis")
@@ -1360,3 +1359,5 @@ with tabs[8]:
                 plt.close(fig_s)
         else:
             st.info("Select at least 2 columns.")
+
+render_footer()
