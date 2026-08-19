@@ -376,7 +376,7 @@ def render_sidebar_credit():
     st.markdown(
         """
         <div class="sidebar-credit">
-            © 2026 <strong>Prabin Dawadi</strong>. All rights reserved.
+            © 2026 <strong>Bivek Pokharel, Saroj Nepal, Mishal Roy and Prabin Dawadi (under review)</strong>. All rights reserved.
         </div>
         """,
         unsafe_allow_html=True,
