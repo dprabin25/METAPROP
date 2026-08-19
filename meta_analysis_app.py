@@ -31,7 +31,7 @@ plt.rcParams.update({
 })
 
 # =============================================================================
-# STYLE  —  aesthetic theme + copyright footer
+# STYLE  —  aesthetic theme
 # =============================================================================
 st.markdown("""
 <style>
@@ -346,26 +346,8 @@ div[data-testid="stAlert"]:has(svg[data-testid="stIconMaterialWarning"]) { borde
 ::-webkit-scrollbar-thumb:hover { background:#8FA6D6; background-clip:content-box; }
 [data-testid="stSidebar"] ::-webkit-scrollbar-thumb { background:#2C3A63; background-clip:content-box; }
 
-/* ---- Sidebar top credit line ---- */
-.sidebar-credit {
-    padding: 2px 0 14px 0; margin-bottom: 10px;
-    border-bottom: 1px solid #28345A;
-    text-align:left; font-size:11.5px; letter-spacing:.02em; color:#7C90C2 !important;
-}
-.sidebar-credit strong { color:#B9CBEF !important; }
 </style>
 """, unsafe_allow_html=True)
-
-
-def render_sidebar_credit():
-    st.markdown(
-        """
-        <div class="sidebar-credit">
-            © 2025 <strong>Prabin Dawadi</strong>. All rights reserved.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
 
 # =============================================================================
@@ -1141,7 +1123,6 @@ st.title("MetaPropA")
 st.caption("Random-effects (DerSimonian-Laird tau2)  |  HKSJ correction  |  Logit transformation  |  Okabe-Ito palette")
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
-    render_sidebar_credit()
     st.markdown("## Setup")
     uploaded = st.file_uploader("Upload CSV", type=["csv"])
     if not uploaded:
@@ -1204,23 +1185,21 @@ with st.sidebar:
     if sg_focus != "All groups" and group_col:
         analysis_df = analysis_df[analysis_df[group_col].astype(str) == sg_focus].reset_index(drop=True)
 
-# ── Output controls (right-hand panel, main content area) ───────────────────────
-top_left, top_right = st.columns([2.3, 1], gap="large")
-with top_left:
-    st.markdown("#### 📋 Dataset Overview")
-    ov1, ov2, ov3 = st.columns(3)
-    ov1.metric("Studies in analysis", len(analysis_df))
-    ov2.metric("Excluded", len(excluded_df) + len(manual_excl))
-    ov3.metric("Group columns", len(group_cols))
-    if group_cols:
-        group_bits = []
-        for gc in group_cols:
-            n_g = analysis_df[gc].astype(str).nunique()
-            group_bits.append(f"**{gc}** ({n_g} groups)")
-        st.caption("Grouped by: " + "  •  ".join(group_bits))
-with top_right:
-    with st.container(border=True):
-        st.markdown("#### ⚙️ Output Controls")
+# ── Dataset status line (one compact row — no scattered cards) ──────────────────
+status_bits = [
+    f"**{len(analysis_df)}** studies in analysis",
+    f"**{len(excluded_df) + len(manual_excl)}** excluded",
+]
+for gc in group_cols:
+    n_g = analysis_df[gc].astype(str).nunique()
+    status_bits.append(f"grouped by **{gc}** ({n_g} groups)")
+st.caption("  ·  ".join(status_bits))
+
+# ── Output controls — one collapsed panel, opened only when needed ──────────────
+with st.expander("⚙️ Output controls — display precision & export", expanded=False):
+    prec_col, save_col = st.columns(2, gap="large")
+    with prec_col:
+        st.markdown("**Display precision**")
         PREC = st.slider(
             "Decimal places",
             min_value=1, max_value=6, value=4, step=1,
@@ -1233,8 +1212,8 @@ with top_right:
             help="Decimal places for back-transformed proportions shown as percentages (e.g. 2 → 63.47%).",
             key="pct_prec",
         )
-        st.markdown("---")
-        st.markdown("**💾 Save All Outputs**")
+    with save_col:
+        st.markdown("**💾 Save all outputs**")
         st.caption(
             "Generates a ZIP with structured folders:\n"
             f"`{sanitize(sample_col)}__{sanitize(cases_col)}/`\n"
@@ -1266,7 +1245,6 @@ with top_right:
                 "To pick a location each time, turn on your browser's "
                 "\"Ask where to save each file\" setting."
             )
-st.markdown("---")
 # ── Guard ──────────────────────────────────────────────────────────────────────
 if len(analysis_df) < 2:
     st.error("Need >= 2 valid studies. Check column mapping or filters.")
