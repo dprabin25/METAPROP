@@ -346,8 +346,26 @@ div[data-testid="stAlert"]:has(svg[data-testid="stIconMaterialWarning"]) { borde
 ::-webkit-scrollbar-thumb:hover { background:#8FA6D6; background-clip:content-box; }
 [data-testid="stSidebar"] ::-webkit-scrollbar-thumb { background:#2C3A63; background-clip:content-box; }
 
+/* ---- Sidebar credit line (below Filters) ---- */
+.sidebar-credit {
+    padding: 14px 0 4px 0; margin-top: 10px;
+    border-top: 1px solid #28345A;
+    text-align:left; font-size:11.5px; letter-spacing:.02em; color:#7C90C2 !important;
+}
+.sidebar-credit strong { color:#B9CBEF !important; }
 </style>
 """, unsafe_allow_html=True)
+
+
+def render_sidebar_credit():
+    st.markdown(
+        """
+        <div class="sidebar-credit">
+            © 2026 <strong>Prabin Dawadi</strong>. All rights reserved.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # =============================================================================
@@ -1253,6 +1271,7 @@ with st.sidebar:
         analysis_df = analysis_df[~analysis_df["Study_ID"].isin(manual_excl)].reset_index(drop=True)
     if sg_focus != "All groups" and group_col:
         analysis_df = analysis_df[analysis_df[group_col].astype(str) == sg_focus].reset_index(drop=True)
+    render_sidebar_credit()
 
 # ── Dataset status line (one compact row — no scattered cards) ──────────────────
 status_bits = [
