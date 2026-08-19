@@ -430,13 +430,26 @@ def fmt_pct(v, prec=None):
     """Format a back-transformed proportion as a percentage string."""
     p = st.session_state.get("pct_prec", 2) if prec is None else prec
     return f"{float(expit(v))*100:.{p}f}%"
+def tab_prec_control(key, label="Decimal places", default=None, max_value=6):
+    """Small, right-aligned per-tab decimal-precision control.
+    Defaults to the global precision set in Output Controls, but each tab
+    can be adjusted independently without affecting the others."""
+    if default is None:
+        default = st.session_state.get("global_prec", 4)
+    spacer, ctrl = st.columns([3, 1])
+    with ctrl:
+        val = st.number_input(
+            label, min_value=0, max_value=max_value, value=int(default), step=1,
+            key=key, help="Decimal places shown in this tab only.",
+        )
+    return val
 # =============================================================================
 # FOREST PLOTS
 # =============================================================================
-def _iq_box(ax, res):
+def _iq_box(ax, res, prec=None):
     re_p = expit(res["mu"]);    re_lo = expit(res["ci_lo"]); re_hi = expit(res["ci_hi"])
     fe_p = expit(res["fe_mu"]); fe_lo = expit(res["fe_ci_lo"]); fe_hi = expit(res["fe_ci_hi"])
-    p = st.session_state.get("global_prec", 3)
+    p = st.session_state.get("global_prec", 3) if prec is None else prec
     txt = (f"RE: {re_p:.{p}f} [{re_lo:.{p}f}, {re_hi:.{p}f}]     "
            f"FE: {fe_p:.{p}f} [{fe_lo:.{p}f}, {fe_hi:.{p}f}]\n"
            f"k = {res['k']}     I² = {res['I2']:.1f}%     τ² = {res['tau2']:.4f}     "
@@ -447,7 +460,8 @@ def _iq_box(ax, res):
             family="monospace", color="#D0D8E8", clip_on=False,
             bbox=dict(boxstyle="round,pad=0.45", fc="#1A2744",
                       ec="#0A1628", alpha=0.97, lw=1.2))
-def forest_overall(df, res):
+def forest_overall(df, res, prec=None):
+    dec = st.session_state.get("global_prec", 3) if prec is None else prec
     n = len(df)
     yi, vi, W = res["yi"], res["vi"], res["W"]
     fig_h = max(5.5, n*0.42 + 3.5)
@@ -471,7 +485,7 @@ def forest_overall(df, res):
                 solid_capstyle="round", zorder=2)
         ax.plot(p, y, "s", color=CB["blue"], ms=3.5+9.0*pct/100.0,
                 mec=CB["black"], mew=0.35, zorder=3)
-        ax.text(1.03, y, f"{p:.{st.session_state.get('global_prec',3)}f}  [{pl:.{st.session_state.get('global_prec',3)}f}, {ph:.{st.session_state.get('global_prec',3)}f}]",
+        ax.text(1.03, y, f"{p:.{dec}f}  [{pl:.{dec}f}, {ph:.{dec}f}]",
                 transform=tr, fontsize=9.5, va="center", ha="left",
                 clip_on=False, color="#1A2744")
         ax.text(1.38, y, f"{pct:.1f}%",
@@ -483,7 +497,7 @@ def forest_overall(df, res):
     ax.plot([plo, phi_v], [0, 0], color=CB["vermil"], lw=1.6, ls="--", zorder=3, alpha=0.60)
     ax.axvline(m, color=CB["vermil"], lw=0.8, ls=":", alpha=0.28, zorder=1)
     ax.axhline(0.5, color="#DDDDDD", lw=0.8, zorder=0)
-    ax.text(1.03, 0, f"{m:.{st.session_state.get('global_prec',3)}f}  [{cl:.{st.session_state.get('global_prec',3)}f}, {ch:.{st.session_state.get('global_prec',3)}f}]",
+    ax.text(1.03, 0, f"{m:.{dec}f}  [{cl:.{dec}f}, {ch:.{dec}f}]",
             transform=tr, fontsize=10, va="center", ha="left",
             fontweight="bold", color=CB["vermil"], clip_on=False)
     ax.text(1.38, 0, "100%", transform=tr, fontsize=10, va="center", ha="left",
@@ -491,7 +505,7 @@ def forest_overall(df, res):
     fe_m = expit(res["fe_mu"]); fe_cl = expit(res["fe_ci_lo"]); fe_ch = expit(res["fe_ci_hi"])
     ax.fill([fe_cl, fe_m, fe_ch, fe_m], [-1, -0.58, -1, -1.42], color=CB["blue"], zorder=4, alpha=0.80)
     ax.axhline(-0.5, color="#CCCCCC", lw=0.7, zorder=0, ls=":")
-    ax.text(1.03, -1, f"{fe_m:.{st.session_state.get('global_prec',3)}f}  [{fe_cl:.{st.session_state.get('global_prec',3)}f}, {fe_ch:.{st.session_state.get('global_prec',3)}f}]",
+    ax.text(1.03, -1, f"{fe_m:.{dec}f}  [{fe_cl:.{dec}f}, {fe_ch:.{dec}f}]",
             transform=tr, fontsize=10, va="center", ha="left",
             fontweight="bold", color=CB["blue"], clip_on=False)
     ax.text(1.38, -1, "100%", transform=tr, fontsize=10, va="center", ha="left",
@@ -501,7 +515,7 @@ def forest_overall(df, res):
     ax.set_xlim(0, 1); ax.set_ylim(-2.2, n+2.5)
     ax.set_xlabel("Proportion (95% CI)", fontsize=12, labelpad=5)
     ax.set_title("Forest Plot — Overall", fontsize=14, fontweight="bold", pad=10)
-    _iq_box(ax, res)
+    _iq_box(ax, res, prec=dec)
     ax.legend(handles=[
         Line2D([0],[0], marker="s", color="w", mfc=CB["blue"], ms=9,
                label="Study (size ∝ weight)"),
@@ -511,7 +525,8 @@ def forest_overall(df, res):
                label="95% Prediction interval (RE)"),
     ], fontsize=9, loc="upper right", framealpha=0.88, edgecolor="#CCC")
     return fig
-def forest_subgroup(df, res_overall, group_col):
+def forest_subgroup(df, res_overall, group_col, prec=None):
+    dec = st.session_state.get("global_prec", 3) if prec is None else prec
     groups = sorted(df[group_col].astype(str).unique())
     g_color = {g: PAL[i % len(PAL)] for i, g in enumerate(groups)}
     rows = []
@@ -562,7 +577,7 @@ def forest_subgroup(df, res_overall, group_col):
             ax.plot([pl, ph], [y, y], color=CB["grey"], lw=1.2,
                     solid_capstyle="round", zorder=2)
             ax.plot(p, y, "s", color=col, ms=6, mec=CB["black"], mew=0.35, zorder=3)
-            ax.text(1.03, y, f"{p:.{st.session_state.get('global_prec',3)}f}  [{pl:.{st.session_state.get('global_prec',3)}f}, {ph:.{st.session_state.get('global_prec',3)}f}]",
+            ax.text(1.03, y, f"{p:.{dec}f}  [{pl:.{dec}f}, {ph:.{dec}f}]",
                     transform=tr, fontsize=9.5, va="center", ha="left",
                     clip_on=False, color="#1A2744")
             yticks.append(y); ylabels.append(f"  {row['lbl']}")
@@ -570,7 +585,7 @@ def forest_subgroup(df, res_overall, group_col):
             r = row["res"]; col = g_color[row["g"]]
             m = expit(r["mu"]); cl = expit(r["ci_lo"]); ch = expit(r["ci_hi"])
             ax.fill([cl, m, ch, m], [y, y+0.36, y, y-0.36], color=col, zorder=4, alpha=0.87)
-            ax.text(1.03, y, f"{m:.{st.session_state.get('global_prec',3)}f}  [{cl:.{st.session_state.get('global_prec',3)}f}, {ch:.{st.session_state.get('global_prec',3)}f}]",
+            ax.text(1.03, y, f"{m:.{dec}f}  [{cl:.{dec}f}, {ch:.{dec}f}]",
                     transform=tr, fontsize=10, va="center", ha="left",
                     fontweight="bold", color=col, clip_on=False)
             yticks.append(y); ylabels.append(f"  {row['lbl']}")
@@ -580,7 +595,7 @@ def forest_subgroup(df, res_overall, group_col):
             ax.fill([cl, m, ch, m], [y, y+0.44, y, y-0.44],
                     color=CB["vermil"], zorder=5, alpha=0.95)
             ax.axvline(m, color=CB["vermil"], lw=0.8, ls=":", alpha=0.25, zorder=0)
-            ax.text(1.03, y, f"{m:.{st.session_state.get('global_prec',3)}f}  [{cl:.{st.session_state.get('global_prec',3)}f}, {ch:.{st.session_state.get('global_prec',3)}f}]",
+            ax.text(1.03, y, f"{m:.{dec}f}  [{cl:.{dec}f}, {ch:.{dec}f}]",
                     transform=tr, fontsize=10.5, va="center", ha="left",
                     fontweight="bold", color=CB["vermil"], clip_on=False)
             yticks.append(y); ylabels.append(f"  {row['lbl']}")
@@ -589,7 +604,7 @@ def forest_subgroup(df, res_overall, group_col):
     ax.set_xlabel("Proportion (95% CI)", fontsize=12, labelpad=5)
     ax.set_title(f"Forest Plot — Grouped by: {group_col}",
                  fontsize=14, fontweight="bold", pad=10)
-    _iq_box(ax, res_overall)
+    _iq_box(ax, res_overall, prec=dec)
     return fig
 # =============================================================================
 # FUNNEL PLOT
@@ -779,7 +794,7 @@ def subgroup_funnel_grid(df, group_col):
 # =============================================================================
 # META-REGRESSION
 # =============================================================================
-def meta_regression(df, res, moderator):
+def meta_regression(df, res, moderator, prec=4):
     yi, vi, tau2 = res["yi"], res["vi"], res["tau2"]
     W = 1.0/(vi + tau2)
     col = df[moderator]
@@ -814,9 +829,9 @@ def meta_regression(df, res, moderator):
     R2 = max(0.0, 100.0*(1 - tau2_res/tau2)) if tau2 > 0 else float("nan")
     coef_table = pd.DataFrame({
         "Coefficient": ["Intercept"] + x_label,
-        "Estimate": np.round(beta, 4), "SE": np.round(se_b, 4),
-        "t": np.round(t_val, 3),
-        "p-value": [f"{pv:.4f}" for pv in pvals],
+        "Estimate": np.round(beta, prec), "SE": np.round(se_b, prec),
+        "t": np.round(t_val, prec),
+        "p-value": [f"{pv:.{prec}f}" for pv in pvals],
     })
     stats_d = dict(Q_res=Q_res, df_res=df_r,
                    pval_Qres=float(1 - stats.chi2.cdf(Q_res, df_r)),
@@ -854,7 +869,7 @@ def meta_regression(df, res, moderator):
 # =============================================================================
 # CORRELATIONS
 # =============================================================================
-def correlation_heatmap(df, cols, method="pearson"):
+def correlation_heatmap(df, cols, method="pearson", prec=2):
     sub = df[cols].apply(pd.to_numeric, errors="coerce").dropna()
     if len(sub) < 3: return None
     corr = sub.corr(method=method)
@@ -869,7 +884,7 @@ def correlation_heatmap(df, cols, method="pearson"):
             v = corr.values[i, j]
             tc = "#FFFFFF" if abs(v) > 0.65 else "#1A2744"
             bbox_kw = dict(boxstyle="round,pad=0.15", fc="#1A2744", ec="none", alpha=0.75) if abs(v) > 0.65 else None
-            ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=9.5, color=tc,
+            ax.text(j, i, f"{v:.{prec}f}", ha="center", va="center", fontsize=9.5, color=tc,
                     fontweight="bold" if i == j else "normal", bbox=bbox_kw)
     ax.set_title(f"{method.capitalize()} Correlation Matrix", fontsize=13, fontweight="bold", pad=10)
     plt.tight_layout()
@@ -1163,7 +1178,7 @@ with st.sidebar:
     st.caption("Select one or more columns to define subgroups. Each gets its own analysis and folder in the saved output.")
     group_candidates = [c for c in cleaned_df.columns if c not in {"Study_ID","Sample","Cases"}]
     group_cols = st.multiselect(
-        "Group by … (select multiple)",
+        "Group by columns — you can select multiple",
         group_candidates,
         default=[],
     )
@@ -1275,10 +1290,10 @@ with tabs[1]:
 # ── 2 Summary Stats ─────────────────────────────────────────────────────────────
 with tabs[2]:
     st.subheader("Summary Statistics")
+    _p = tab_prec_control("prec_summary")
     m_p  = expit(res["mu"]);  ci_l = expit(res["ci_lo"]); ci_h = expit(res["ci_hi"])
     pi_l = expit(res["pi_lo"]); pi_h = expit(res["pi_hi"])
     fe_p = expit(res["fe_mu"]); fe_l = expit(res["fe_ci_lo"]); fe_h = expit(res["fe_ci_hi"])
-    _p = PREC  # local alias for readability
     st.markdown("##### Random-Effects Model (DerSimonian-Laird + HKSJ)")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Studies (k)",        res["k"])
@@ -1321,17 +1336,18 @@ with tabs[2]:
             sg_rows.append({
                 gc: g, "k": r_["k"],
                 "Events": int(sub["Cases"].sum()), "N": int(sub["Sample"].sum()),
-                "Proportion": f"{m_s:.{PREC}f}",
-                "95% CI": f"[{expit(r_['ci_lo']):.{PREC}f}, {expit(r_['ci_hi']):.{PREC}f}]",
-                "I2": f"{r_['I2']:.1f}%", "tau2": f"{r_['tau2']:.{PREC}f}",
-                "Q": f"{r_['Q']:.{PREC}f}", "p(het)": f"{r_['pval_Q']:.{PREC}f}",
+                "Proportion": f"{m_s:.{_p}f}",
+                "95% CI": f"[{expit(r_['ci_lo']):.{_p}f}, {expit(r_['ci_hi']):.{_p}f}]",
+                "I2": f"{r_['I2']:.1f}%", "tau2": f"{r_['tau2']:.{_p}f}",
+                "Q": f"{r_['Q']:.{_p}f}", "p(het)": f"{r_['pval_Q']:.{_p}f}",
             })
         st.dataframe(pd.DataFrame(sg_rows), use_container_width=True, hide_index=True)
 # ── 3 Forest (Overall) ──────────────────────────────────────────────────────────
 with tabs[3]:
     st.subheader("Forest Plot — Overall")
+    _p3 = tab_prec_control("prec_forest_overall")
     try:
-        fig = forest_overall(analysis_df.reset_index(drop=True), res)
+        fig = forest_overall(analysis_df.reset_index(drop=True), res, prec=_p3)
         st.pyplot(fig, width="stretch")
         st.download_button(
             "Download forest (overall)",
@@ -1350,6 +1366,7 @@ with tabs[4]:
     if not group_cols:
         st.info("Select at least one Group by column in the sidebar.")
     else:
+        _p4 = tab_prec_control("prec_forest_subgroup")
         for gc in group_cols:
             with st.expander(f"Grouped by: **{gc}**", expanded=(gc == group_cols[0])):
                 n_groups_sg = analysis_df[gc].astype(str).nunique()
@@ -1358,7 +1375,7 @@ with tabs[4]:
                 else:
                     try:
                         fig_sg = forest_subgroup(
-                            analysis_df.reset_index(drop=True), res, gc
+                            analysis_df.reset_index(drop=True), res, gc, prec=_p4
                         )
                         st.pyplot(fig_sg, width="stretch")
                         st.download_button(
@@ -1388,6 +1405,7 @@ with tabs[5]:
 # ── 6 Publication Bias ──────────────────────────────────────────────────────────
 with tabs[6]:
     st.subheader("Publication Bias Assessment")
+    _p6 = tab_prec_control("prec_pubbias")
     col_l, col_r = st.columns(2)
     with col_l:
         st.markdown("#### Egger's Test (Overall)")
@@ -1396,8 +1414,8 @@ with tabs[6]:
             if eg:
                 st.dataframe(pd.DataFrame({
                     "Statistic": ["Intercept","SE (intercept)","t-value","p-value"],
-                    "Value": [f"{eg['intercept']:.{PREC}f}", f"{eg['se_int']:.{PREC}f}",
-                              f"{eg['t']:.{PREC}f}", f"{eg['pval']:.{PREC}f}"],
+                    "Value": [f"{eg['intercept']:.{_p6}f}", f"{eg['se_int']:.{_p6}f}",
+                              f"{eg['t']:.{_p6}f}", f"{eg['pval']:.{_p6}f}"],
                 }), use_container_width=True, hide_index=True)
                 if eg["pval"] < 0.10:
                     st.warning("Egger p < 0.10 — possible funnel asymmetry.")
@@ -1411,7 +1429,7 @@ with tabs[6]:
             bg = begg_test(res["yi"], res["vi"])
             st.dataframe(pd.DataFrame({
                 "Statistic": ["Kendall's tau","p-value"],
-                "Value": [f"{bg['tau']:.{PREC}f}", f"{bg['pval']:.{PREC}f}"],
+                "Value": [f"{bg['tau']:.{_p6}f}", f"{bg['pval']:.{_p6}f}"],
             }), use_container_width=True, hide_index=True)
             if bg["pval"] < 0.10:
                 st.warning("Begg p < 0.10 — significant rank correlation.")
@@ -1461,17 +1479,17 @@ with tabs[6]:
             st.markdown(f"**Studies imputed (k0):** {k0}")
         c1, c2, c3 = st.columns(3)
         c1.metric("Adjusted proportion",
-                  f"{tf['p_adj']:.{PREC}f}",
-                  delta=f"{tf['p_adj'] - expit(res['mu']):.{PREC}f} vs. original")
-        c2.metric("95% CI (lower)", f"{tf['p_lo']:.{PREC}f}")
-        c3.metric("95% CI (upper)", f"{tf['p_hi']:.{PREC}f}")
+                  f"{tf['p_adj']:.{_p6}f}",
+                  delta=f"{tf['p_adj'] - expit(res['mu']):.{_p6}f} vs. original")
+        c2.metric("95% CI (lower)", f"{tf['p_lo']:.{_p6}f}")
+        c3.metric("95% CI (upper)", f"{tf['p_hi']:.{_p6}f}")
         orig_p = expit(res["mu"])
         orig_lo = expit(res["ci_lo"]); orig_hi = expit(res["ci_hi"])
         st.dataframe(pd.DataFrame({
             "Estimate":       ["Original (RE)",           "Trim-and-Fill adjusted"],
-            "Proportion":     [f"{orig_p:.{PREC}f}",     f"{tf['p_adj']:.{PREC}f}"],
-            "95% CI lower":   [f"{orig_lo:.{PREC}f}",    f"{tf['p_lo']:.{PREC}f}"],
-            "95% CI upper":   [f"{orig_hi:.{PREC}f}",    f"{tf['p_hi']:.{PREC}f}"],
+            "Proportion":     [f"{orig_p:.{_p6}f}",     f"{tf['p_adj']:.{_p6}f}"],
+            "95% CI lower":   [f"{orig_lo:.{_p6}f}",    f"{tf['p_lo']:.{_p6}f}"],
+            "95% CI upper":   [f"{orig_hi:.{_p6}f}",    f"{tf['p_hi']:.{_p6}f}"],
             "Studies (k)":    [str(len(res["yi"])),       str(len(res["yi"]) + k0)],
         }), use_container_width=True, hide_index=True)
         fig_tf = funnel_plot_trimfill(res, tf, title="Funnel Plot — Trim-and-Fill Adjusted")
@@ -1507,6 +1525,7 @@ with tabs[6]:
 # ── 7 Meta-Regression ───────────────────────────────────────────────────────────────────
 with tabs[7]:
     st.subheader("Meta-Regression")
+    _p7 = tab_prec_control("prec_metareg")
     skip = {"Study_ID","Sample","Cases"}
     mod_cols = [c for c in analysis_df.columns if c not in skip]
     if not mod_cols:
@@ -1514,13 +1533,13 @@ with tabs[7]:
     else:
         moderator = st.selectbox("Moderator variable", mod_cols)
         if st.button("Run Meta-Regression", type="primary"):
-            ct, sd, fig_mr = meta_regression(analysis_df, res, moderator)
+            ct, sd, fig_mr = meta_regression(analysis_df, res, moderator, prec=_p7)
             if ct is None:
                 st.error("Regression failed — collinearity or insufficient data.")
             else:
                 c1, c2, c3 = st.columns(3)
-                c1.metric("Residual Q",      f"{sd['Q_res']:.2f}")
-                c2.metric("p(residual het)", f"{sd['pval_Qres']:.4f}")
+                c1.metric("Residual Q",      f"{sd['Q_res']:.{_p7}f}")
+                c2.metric("p(residual het)", f"{sd['pval_Qres']:.{_p7}f}")
                 r2_str = f"{sd['R2']:.1f}%" if not np.isnan(sd["R2"]) else "N/A"
                 c3.metric("R2 analog", r2_str)
                 st.markdown("#### Coefficients (logit scale)")
@@ -1533,6 +1552,7 @@ with tabs[7]:
 # ── 8 Correlations ──────────────────────────────────────────────────────────────────────────
 with tabs[8]:
     st.subheader("Correlation Analysis")
+    _p8 = tab_prec_control("prec_corr", default=2, max_value=4)
     num_cols = [c for c in analysis_df.columns
                 if c not in {"Study_ID"}
                 and pd.to_numeric(analysis_df[c], errors="coerce").notna().sum() >= 3]
@@ -1543,7 +1563,7 @@ with tabs[8]:
                                    default=num_cols[:min(6, len(num_cols))])
         method = st.radio("Method", ["pearson","spearman"], horizontal=True)
         if len(sel_cols) >= 2:
-            fig_c = correlation_heatmap(analysis_df, sel_cols, method)
+            fig_c = correlation_heatmap(analysis_df, sel_cols, method, prec=_p8)
             if fig_c:
                 st.pyplot(fig_c, width="stretch")
                 st.download_button("Download heatmap", fig_png(fig_c),
@@ -1567,7 +1587,7 @@ with tabs[8]:
                         xf = np.linspace(xv[ok].min(), xv[ok].max(), 200)
                         ax.plot(xf, m_*xf+b_, color=CB["vermil"], lw=1.5)
                         r_, p_ = stats.pearsonr(xv[ok], yv[ok])
-                        ax.set_title(f"{cx} vs {cy}\nr={r_:.2f}  p={p_:.3f}", fontsize=9.5, pad=4)
+                        ax.set_title(f"{cx} vs {cy}\nr={r_:.{_p8}f}  p={p_:.{max(_p8,3)}f}", fontsize=9.5, pad=4)
                     ax.set_xlabel(cx, fontsize=9); ax.set_ylabel(cy, fontsize=9)
                     ax.spines["top"].set_visible(False); ax.spines["right"].set_visible(False)
                 for idx in range(len(pairs), nr_s*nc_s):
