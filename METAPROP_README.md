@@ -1,4 +1,4 @@
-# METAPROP
+# MetaPropA
 
 **MetaPropA** is a browser-based [Streamlit](https://streamlit.io) app for **meta-analysis of single proportions** (prevalence, incidence, event rates). Upload a CSV with one row per study, map three columns, and it produces pooled estimates, heterogeneity statistics, forest plots, funnel plots, publication-bias tests, trim-and-fill correction, meta-regression and correlation analysis. Every result can be exported as one structured ZIP.
 
